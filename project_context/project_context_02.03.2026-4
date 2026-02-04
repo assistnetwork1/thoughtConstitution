@@ -1,0 +1,418 @@
+#project_context_02.03.2026-4
+#project_context/project_context_02.03.2026-4
+
+Thinking Constitution Engine — Project Context (Canonical) — v0.5.1 Patch (Gate Migration Applied)
+
+Patch focus: Complete the v0.5.1 bridge by shifting constitutional governance from legacy Strength caps to canonical ActionClass gating (PROBE / LIMITED / COMMIT), while preserving the thin-slice runnable kernel and invariant harness.
+Non-goals remain: no Bayesian updating, no utility maximization, no autonomous execution, no silent belief revision (changes require Review).
+
+0. Current Status Snapshot (as of 2026-02-03)
+What is working now (confirmed)
+
+Core artifact skeleton exists and runs end-to-end:
+RawInput → Evidence → Observation → Interpretation → Orientation → Option → Recommendation → AuditTrail → Episode
+
+Invariants + validator harness exists and is executable.
+
+Thin-slice includes:
+
+in-memory store
+
+toy episode builder
+
+validation runner
+
+auditable lineage graph (AuditTrail links)
+
+Stable repo pattern remains:
+(a) invariants are predicates → (b) validate orchestrates them → (c) tests assert violations.
+
+What changed in v0.5.1 (this revision)
+
+Proportionate Action governance is now implemented as ActionClass gating, not max_strength_allowed().
+
+Uncertainty is still stored as numeric (Uncertainty.level), but governance uses ordinal mapping to:
+UncertaintyLevel ∈ {LOW, MED, HIGH} (and reserved UNKNOWN if/when needed).
+
+Overrides now exist as explicit kernel fields (thin-slice minimal):
+
+Orientation: governance_mode, override_scope, override_rationale
+
+Recommendation: override_used, override_scope_used
+
+max_strength_allowed() is retained only as diagnostic/legacy display, not constitutional control.
+
+1. Purpose (Why this engine exists)
+
+The Thinking Constitution Engine (TCE) is a domain-agnostic governance kernel that standardizes how decisions are formed, constrained, justified, and reviewed.
+
+It exists to solve:
+
+Information overload / frame contamination
+
+Implicit value smuggling into optimization and recommendations
+
+Overconfident action under uncertainty
+
+Lack of auditability (why was this recommended?)
+
+Lack of learning loops (what happened after action?)
+
+The TCE is not an “ultimate decision maker.” It is a constitutional layer that governs decision-support outputs.
+
+2. Design Posture (Non-negotiables)
+Kernel-first
+
+Models and invariants are the core deliverable.
+
+UI and app adapters come later.
+
+Audit-first
+
+Every recommendation should be traceable to upstream artifacts.
+
+Every exception should be explicit and reviewable.
+
+Proportionate Action
+
+Uncertainty constrains what intensity of action is allowed.
+
+High-stakes + low reversibility demands lower uncertainty or a weaker action class.
+
+3. Canonical Flow (Observe → Model → Orient → Act → Review)
+Observe
+
+RawInput: unstructured capture of “what came in”
+
+Evidence: provenance anchor (source references)
+
+Observation: reality-anchored statements (InfoType constrained to observational)
+
+Model
+
+Interpretation: hypotheses/explanations referencing observations, carrying confidence + uncertainty
+
+Orient
+
+Orientation: declared objectives/constraints + risk posture + governance mode (v0.5)
+
+Act
+
+Option: candidate actions (must stay auditable)
+
+Recommendation: ranks options and must justify intensity under uncertainty
+
+Review (v0.5)
+
+ReviewRecord: outcome + calibration notes + override audit (planned; not fully implemented in thin-slice)
+
+4. Core Data Semantics (v0.5+)
+4.1 Confidence vs Uncertainty
+
+Confidence: how well supported a claim is (support strength)
+
+Uncertainty: remaining fragility / underspecification even if supported
+
+4.2 Uncertainty encodings (kernel-level)
+
+Canonical ordinal (governance):
+UncertaintyLevel ∈ {LOW, MED, HIGH, UNKNOWN}
+
+Legacy numeric container (storage):
+Uncertainty.level ∈ [0,1] (non-Bayesian)
+
+Rule: any artifact influencing action should carry:
+
+confidence
+
+uncertainty
+
+provenance linkage
+
+Bridge rule (v0.5.1): ordinal used for governance is derived by mapping numeric bands.
+
+5. Proportionate Action Gating (v0.5 canonical) — Implemented in thin-slice
+5.1 Required Option fields for gating
+
+Each Option declares:
+
+impact ∈ [0,1] (kernel scalar)
+
+reversibility ∈ [0,1] (kernel scalar)
+
+uncertainty.level ∈ [0,1] (stored; mapped to ordinal)
+
+action_class ∈ {PROBE, LIMITED, COMMIT}
+
+dependencies = [artifact_id,…] (explicit provenance anchors)
+
+5.2 Canonical mapping (bridge)
+
+Scalar → ordinal mappings are stable “bands” (v0.5.1):
+
+ImpactLevel: LOW / MED / HIGH via bands on Impact.value
+
+ReversibilityLevel: HIGH / MED / LOW via bands on Reversibility.value
+
+UncertaintyLevel: LOW / MED / HIGH via bands on Uncertainty.level
+
+5.3 Gate rule (canonical)
+
+Let riskiness = f(ImpactLevel, ReversibilityLevel) where:
+
+higher impact ⇒ higher riskiness
+
+lower reversibility ⇒ higher riskiness
+
+Then:
+
+If riskiness = HIGH → uncertainty must be LOW (else only PROBE)
+
+If riskiness = MED → uncertainty must be ≤ MED (else PROBE only)
+
+If riskiness = LOW → any uncertainty allowed (but must be declared)
+
+Invariant: a Recommendation must not include an Option with an action_class that violates the gate, unless:
+
+a valid constitutional override is explicitly declared.
+
+5.4 Risk posture tightening (optional in v0.5.1)
+
+Risk posture may tighten but never loosen:
+
+CONSERVATIVE may disallow COMMIT even when gate permits (override required to bypass).
+
+6. Constitutional Overrides (v0.5 canonical) — Thin-slice minimal wiring
+6.1 Why overrides exist
+
+Real systems need exceptions; the constitution prevents exceptions from becoming silent drift.
+
+Overrides are:
+
+explicit
+
+episode-scoped
+
+auditable
+
+review-mandatory (full review machinery planned)
+
+6.2 GovernanceMode (Orientation)
+
+GovernanceMode ∈ {ADVISORY_ONLY, EXTENDED_ALLOWED}
+Default: ADVISORY_ONLY.
+
+If EXTENDED_ALLOWED, Orientation must provide:
+
+override_scope: bounded permission set (not “anything”)
+
+override_rationale: why the exception is justified
+
+(override_constraints + override_expiry remain part of the canonical spec; not yet implemented in thin-slice.)
+
+6.3 Override usage logging (Recommendation)
+
+If an override is needed to satisfy gating:
+
+Recommendation must set override_used = true
+
+Recommendation must set override_scope_used
+
+Invariant requires: override_scope_used ⊆ Orientation.override_scope
+
+7. Implementation State in Repo (v0.5.1)
+7.1 Current “thin-slice” runnable kernel
+
+A compact reference implementation provides:
+
+artifacts + in-memory store
+
+invariants + validator harness
+
+toy episode builder
+
+runner output with audit trail printing
+
+This script remains a reference prototype, not the final module architecture.
+
+7.2 What invariants enforce now (updated)
+
+Episode must have Orientation before Recommendations are valid.
+
+Recommendation must include an audit trail.
+
+InfoType slot constraints:
+
+Observations must be observational InfoTypes
+
+Interpretations must be interpretive InfoTypes
+
+Traceability minimum: Recommendations require some upstream content.
+
+Option gating fields required (action_class + dependencies).
+
+Recommendation required justification fields:
+
+uncertainty_summary
+
+proportionate_action_justification
+
+ActionClass gate enforced using derived riskiness and ordinal uncertainty.
+
+Overrides must be explicit and correctly logged if used.
+
+7.3 What is still incomplete vs canonical v0.5
+
+ReviewRecord is not yet implemented in thin-slice, so:
+
+override review-mandatory enforcement is partial (structural placeholders exist, not full lifecycle).
+
+“Key assumptions” list on Recommendation (IDs + confidence/uncertainty) is specified but not yet modeled as first-class fields.
+
+Override constraints and expiry are specified in canon but not yet encoded.
+
+8. File Structure (Kernel-first) — Target v0.5.1
+constitution_engine/
+  constitution_engine/
+    models/
+      types.py              # GovernanceMode, ActionClass, UncertaintyLevel, OverridePermission (+ level mappings)
+      evidence.py
+      observation.py
+      interpretation.py
+      orientation.py        # governance_mode + override fields
+      option.py             # action_class + dependencies (+ impact/rev/uncertainty)
+      recommendation.py     # uncertainty summary + justification + override usage fields
+      review.py             # override audit + calibration notes (next)
+      episode.py
+      audit.py
+
+    invariants/
+      rules.py              # gating rules + override invariants
+      validate.py           # orchestration wrappers (validate_all, validate_episode, etc.)
+
+    runtime/
+      store.py              # ArtifactStore + resolve utilities
+
+  tests/
+    conftest.py
+    test_validate.py
+    test_smoke.py
+    test_action_gating.py   # golden tests for PROBE/LIMITED/COMMIT + override cases
+
+9. Definition of Done — v0.5.1 Kernel (Updated)
+
+Kernel is functionally complete when:
+
+Uncertainty constrains action intensity via ActionClass gating (not numeric Strength heuristics). ✅
+
+Any override is:
+
+explicit in Orientation ✅
+
+scoped and episode-bounded (scope ✅, explicit expiry pending)
+
+logged in Recommendation (and later ReviewRecord) ✅ (Recommendation logging)
+
+Every Recommendation includes:
+
+uncertainty_summary ✅
+
+proportionate_action_justification ✅
+
+auditable provenance links ✅
+
+10. Invariants (paste-ready list) — v0.5.1 (as implemented)
+Uncertainty + gating fields
+
+INV-UNC-001 (Uncertainty Required):
+Any artifact influencing action should declare uncertainty and confidence.
+
+INV-UNC-002 (Option Gating Fields):
+No Option is valid without:
+impact, reversibility, uncertainty, action_class, and dependencies.
+
+Action class
+
+INV-ACT-001 (ActionClass Required):
+Every Option declares ActionClass ∈ {PROBE, LIMITED, COMMIT}.
+
+INV-ACT-002 (Proportionate Action Gate):
+Declared ActionClass must be allowed by the gate derived from:
+Impact × Reversibility × Uncertainty and Orientation risk posture,
+unless a valid explicit override exists.
+
+Recommendation justification
+
+INV-REC-001 (Recommendation Justification):
+Recommendations must include:
+uncertainty_summary + proportionate_action_justification.
+
+Overrides (thin-slice)
+
+INV-OVR-001 (Override Explicitness):
+If any override is used, Orientation must set:
+GovernanceMode=EXTENDED_ALLOWED, specify override_scope, and provide override_rationale.
+
+INV-OVR-002 (Override Scoping):
+override_scope_used ⊆ override_scope.
+
+INV-OVR-003 (Override Review Mandatory):
+Canonical requirement; full enforcement is pending ReviewRecord model integration.
+
+11. Immediate Next Step (v0.5.1 commit plan) — Revised
+
+Lock gating behavior with golden tests + add ReviewRecord skeleton for override audit.
+
+Deliverables:
+
+Add tests/test_action_gating.py:
+
+golden tables for allowed_action_classes()
+
+cases demonstrating override permission required
+
+subset enforcement: override_scope_used ⊆ override_scope
+
+Introduce minimal ReviewRecord model (even if unused by runner):
+
+fields: override_audit, calibration_notes, outcomes
+
+Add invariant stub:
+
+if Recommendation.override_used = true, ReviewRecord must exist (episode-scoped)
+(This can be soft-fail or TODO until you wire Review into Episode.)
+
+This is the cleanest next move because it:
+
+makes governance stable and regression-proof
+
+completes the “override must be reviewed” arc structurally
+
+preserves the thin-slice runnable posture
+
+12. Change Log
+v0.5
+
+Added uncertainty semantics (ordinal/banded; non-Bayesian)
+
+Added constitutional overrides (explicit, scoped, episode-bounded, review-mandatory)
+
+Defined ActionClass gating (PROBE/LIMITED/COMMIT)
+
+v0.5.1 (prior snapshot, 02.03.2026-3)
+
+Recorded repo execution status (pytest green)
+
+Identified remaining gap: Strength cap vs ActionClass gate
+
+Set next objective: migrate governance to ActionClass gating + golden tests
+
+v0.5.1 (this document, 02.03.2026-4)
+
+Governance migration applied: ActionClass gating now enforces proportionate action
+
+Added thin-slice override wiring (Orientation/Recommendation fields + scoping invariant)
+
+Added required Recommendation justification outputs (uncertainty_summary + proportionate_action_justification)
+
+Retained Strength cap heuristic as diagnostic only (non-governing)

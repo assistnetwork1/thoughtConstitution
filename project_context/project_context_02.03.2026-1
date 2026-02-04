@@ -1,0 +1,367 @@
+#project_context_02.01.2026-2
+#project_context/project_context_02.01.2026-2
+
+Thinking Constitution Engine — Project Context (Canonical)
+
+Status: Foundational / Kernel-first
+Design posture: Models-first, domain-agnostic, audit-first, integration-later
+
+1. Purpose (Why this project exists)
+
+(Unchanged)
+
+The Thinking Constitution Engine (TCE) is a domain-agnostic cognitive kernel designed to govern how decisions and optimizations are made, not what is decided.
+
+It exists to address a specific class of modern failures in decision systems:
+
+Information overload and frame contamination
+
+Implicit value smuggling into optimization pipelines
+
+Overconfident action under epistemic uncertainty
+
+Lack of auditability, review, and learning
+
+Rather than acting as an “ultimate decision maker,” the TCE is a constitutional decision-support framework that:
+
+Preserves human agency
+
+Makes uncertainty first-class and explicit
+
+Requires declared values, objectives, and constraints
+
+Produces proportionate, explainable recommendations
+
+Enables structured learning over time through review
+
+The engine sits above any optimization mechanism
+(rules, heuristics, ML, GPT, scoring systems) and governs their use, not replaces them.
+
+2. Core Design Principles (Non-negotiable)
+
+(Unchanged in meaning; enforcement clarified)
+
+These principles are enforced structurally and mechanically, not aspirationally.
+
+Epistemic Sovereignty
+No external interpretation has authority without passing through internal process.
+
+Observation Primacy
+All reasoning must ground itself in observations, not narratives or conclusions.
+
+Model Provisionality
+Models are tools, not truths; assumptions must be explicit and disposable.
+
+Orientation Explicitness
+Values, objectives, constraints, and risk posture must be stated, not inferred.
+
+Proportionate Action
+Action intensity must scale with confidence, uncertainty, impact, and reversibility.
+
+Auditability
+Every output must be traceable to its inputs and assumptions.
+
+Review & Compression
+Outcomes feed back into assumptions, weights, and future behavior.
+
+These principles are enforced via:
+
+Immutable models
+
+Constitutional invariants
+
+Runtime validation (non-throwing, auditable)
+
+3. Conceptual Scope (What this is / is not)
+
+(Unchanged)
+
+This project is:
+
+A cognitive kernel
+
+A governance layer for optimization engines
+
+A structured decision pipeline
+
+A reusable foundation across domains
+
+This project is not:
+
+A single optimization algorithm
+
+A black-box AI decision maker
+
+A product, UI, or workflow tool
+
+Tied to any one application (e.g., Assist Network)
+
+Applications consume the engine; they do not define it.
+
+4. High-Level Architecture
+
+(Clarified to reflect invariant execution)
+
+The engine enforces a canonical loop:
+
+Observe → Model → Orient → Act → Review
+
+Each stage produces typed, immutable artifacts that are:
+
+Stored independently
+
+Linked by explicit provenance
+
+Auditable without replaying logic
+
+A DecisionEpisode provides an index-only container over the loop, enabling:
+
+Validation
+
+Audit
+
+Review
+
+Comparison over time
+
+All transitions between stages are constitutionally gated by invariants.
+
+5. Kernel Model Inventory (Foundational)
+
+(Models unchanged; enforcement clarified)
+
+Ingress / Reality
+
+RawInput — Immutable record of what entered the system
+
+Evidence — Provenance anchors (sources, spans, integrity confidence)
+
+Observation — Reality-anchored facts, measurements, testimony
+
+Interpretation / Modeling
+
+Interpretation — Structured hypotheses or explanations
+
+Assumption — Explicit assumptions with confidence and uncertainty
+
+ModelSpec / ModelState — Declared model families and state
+
+Orientation / Values
+
+Orientation — Objectives, constraints, weights, risk posture
+
+Objective — Goals with explicit weighting
+
+Constraint — Hard must-not-violate boundaries
+
+ValueSignal — Normative preferences (non-binding)
+
+Action
+
+Option — Possible actions (pre-recommendation), with:
+
+Impact
+
+Reversibility
+
+Uncertainty
+
+Provenance references
+
+Recommendation — Ranked, explainable, uncertainty-aware proposals
+
+Feedback
+
+Outcome — What actually happened
+
+ReviewRecord — Learning artifacts:
+
+Assumption failures
+
+Calibration errors
+
+Updates and next questions
+
+Governance
+
+InfoType taxonomy — Explicit typing of information
+
+DecisionEpisode — Index-only container
+
+AuditTrail / Lineage — Full trace from action back to reality
+
+6. Information Typing (Critical Design Choice)
+
+(Unchanged)
+
+All information is explicitly typed to prevent contamination:
+
+Observational — events, measurements, testimony
+
+Interpretive — claims, explanations, hypotheses
+
+Normative — values, preferences, constraints
+
+Predictive — forecasts, scenarios
+
+Decision artifacts (Options, Recommendations, Outcomes) are not information and are governed separately.
+
+Constitutional Rule:
+No information may influence action without declared type, provenance, and confidence.
+
+7. File Structure (Kernel-first)
+
+(Updated only by implication: invariants now populated)
+
+constitution_engine/
+  constitution_engine/
+    models/
+      types.py
+      raw_input.py
+      evidence.py
+      observation.py
+      interpretation.py
+      model_spec.py
+      orientation.py
+      option.py
+      recommendation.py
+      outcome.py
+      review.py
+      audit.py
+      episode.py
+
+    invariants/
+      rules.py          # Enforced constitutional invariants (v0.4)
+      validate.py       # Non-throwing validation harness
+
+    runtime/
+      store.py
+      in_memory_store.py
+      engine.py
+
+
+Rationale
+
+Models define meaning
+
+Invariants define what is allowed
+
+Runtime orchestrates but does not redefine semantics
+
+8. Relationship to Applications
+
+(Unchanged, but now enforced)
+
+Applications:
+
+Provide raw inputs
+
+Supply orientation defaults
+
+Implement domain-specific interpretation/scoring
+
+Persist and display outputs
+
+Applications do not:
+
+Define information types
+
+Bypass invariants
+
+Collapse uncertainty
+
+Execute action without orientation and validation
+
+9. Sequential Update Strategy (Maintaining Awareness)
+
+(Unchanged)
+
+This document is living and versioned.
+
+Each update must:
+
+State why the change exists
+
+Specify which layer changed
+
+Note downstream implications
+
+Allowed:
+
+New invariants
+
+Metadata refinement
+
+New kernel models
+
+Disallowed (without explicit review):
+
+Collapsing model boundaries
+
+Allowing action without orientation
+
+Opaque or un-auditable scoring
+
+10. Definition of “Done” (for the Kernel)
+
+(Clarified)
+
+The kernel is functionally complete when:
+
+Every Recommendation is fully traceable to Observations and Evidence
+
+Uncertainty mechanically constrains action
+
+Proportionate Action is enforced by invariants
+
+Review produces explicit, auditable updates
+
+No domain logic exists in core layers
+
+At that point, applications and policies can safely build on top.
+
+11. Canonical Summary
+
+The Thinking Constitution Engine is a cognitive governance kernel that makes decision-making:
+
+Explicit
+
+Auditable
+
+Value-aware
+
+Uncertainty-sensitive
+
+— while preserving human agency.
+
+This document is the single source of truth and must be updated deliberately.
+
+Change Log
+
+v0.1 — Initial kernel context and models-first architecture defined
+
+v0.2 — Information typing clarified; DecisionEpisode indexing introduced
+
+v0.3 — Kernel model layer completed
+
+Full Observe→Model→Orient→Act→Review artifact set defined
+
+Immutable, IDs-only lineage structures added
+
+Orientation, Option, Recommendation, Assumption models stabilized
+
+v0.4 — Invariant layer implemented and enforced
+
+Observation typing and provenance enforced
+
+Evidence integrity and linkage enforced
+
+Recommendation structural validity enforced
+
+Proportionate Action gating implemented
+
+EXECUTE option auditability, orientation alignment, and uncertainty required
+
+Recommendation provenance and provenance-overlap with top option enforced
+
+Non-throwing validation with explicit violation reporting established

@@ -1,0 +1,286 @@
+#project_context_02.03.2026-2
+#project_context/project_context_02.03.2026-2
+
+Thinking Constitution Engine — Project Context (Canonical) — v0.5 Patch
+
+Scope of patch: Adds Uncertainty Semantics + Constitutional Overrides.
+Non-goals remain: no Bayesian updating, no utility maximization, no autonomous execution, no belief revision without review.
+
+6.5 Uncertainty Semantics (NEW in v0.5)
+Why this exists
+
+v0.4 requires uncertainty, but v0.5 defines what uncertainty does mechanically.
+
+The kernel treats uncertainty as a first-class governance constraint:
+
+Uncertainty does not “resolve itself”
+
+Uncertainty constrains action eligibility and intensity
+
+Uncertainty must be declared, auditable, and reviewable
+
+Representation (kernel-level, non-probabilistic)
+
+The kernel supports uncertainty as bounded or ordinal—not necessarily probabilistic.
+
+Allowed kernel encodings
+
+Ordinal: UncertaintyLevel ∈ {LOW, MED, HIGH, UNKNOWN}
+
+Bounded interval (optional): UncertaintyBand = [low, high] on a normalized 0–1 scale
+(This is a container, not a commitment to Bayesian semantics.)
+
+Rule: every information artifact that can influence action must carry:
+
+confidence (how strongly held)
+
+uncertainty (how fragile/underspecified)
+
+provenance (Evidence linkage)
+
+Uncertainty’s mechanical effect: Proportionate Action Gating
+
+The kernel enforces “Proportionate Action” through gates—not by scoring.
+
+Each Option declares:
+
+impact ∈ {LOW, MED, HIGH}
+
+reversibility ∈ {HIGH, MED, LOW}
+
+uncertainty ∈ {LOW, MED, HIGH, UNKNOWN}
+
+dependencies (artifact IDs: observations, assumptions, interpretations)
+
+The engine classifies allowable action intensity:
+
+ActionClass ∈ {PROBE, LIMITED, COMMIT}
+
+PROBE: reversible, low-stakes information-seeking actions
+
+LIMITED: partial commitment, bounded exposure
+
+COMMIT: high commitment / high impact actions
+
+Gate Rule (canonical)
+Let riskiness = f(impact, reversibility) where:
+
+higher impact increases riskiness
+
+lower reversibility increases riskiness
+
+Then:
+
+If riskiness is HIGH, uncertainty must be LOW (or only PROBE allowed)
+
+If riskiness is MED, uncertainty must be ≤ MED (or LIMITED/PROBE only)
+
+If riskiness is LOW, any uncertainty is allowed (but must be declared)
+
+Constitutional invariant:
+
+No Recommendation may include COMMIT-class actions unless the uncertainty gate is satisfied and the Orientation risk posture permits it.
+
+Required uncertainty explanations
+
+Every Recommendation must include:
+
+uncertainty_summary (what is uncertain and why)
+
+key_assumptions (IDs + confidence/uncertainty)
+
+proportionate_action_justification (why intensity matches uncertainty and reversibility)
+
+7.5 Constitutional Overrides (NEW in v0.5)
+Purpose
+
+The kernel is advisory by default. But real-world use will demand exceptions.
+v0.5 adds a formal override mechanism so exceptions do not become silent drift.
+
+Overrides are:
+
+explicit
+
+episode-scoped
+
+auditable
+
+review-mandatory
+
+Governance Mode
+
+The engine introduces a declared governance mode in Orientation:
+
+GovernanceMode ∈
+
+ADVISORY_ONLY (default)
+
+EXTENDED_ALLOWED (explicit opt-in, scoped, logged)
+
+Override structure
+
+If EXTENDED_ALLOWED, Orientation must provide:
+
+override_scope: a bounded set of permissions (not “anything”)
+
+examples:
+
+ALLOW_EXTERNAL_MODEL_STATE_UPDATE (adapter may update a ModelState artifact)
+
+ALLOW_SCORING_RANKING (application may attach ranking metadata)
+
+ALLOW_AUTO_EXECUTE_CLASS_PROBE (external executor may run PROBE actions)
+
+override_rationale: why this exception is necessary
+
+override_constraints: extra guardrails (e.g., “only PROBE”, “max exposure”, “time window”)
+
+override_expiry: episode-level expiry (always ends with the episode)
+
+Constitutional invariant:
+
+An override cannot expand action intensity beyond what Proportionate Action gating permits unless the override explicitly declares the expansion and a ReviewRecord is mandatory.
+
+Mandatory review on override usage
+
+If any override is used:
+
+A ReviewRecord must include:
+
+what was overridden
+
+why it was invoked
+
+observed outcome
+
+whether the override should be allowed again (and under what narrower scope)
+
+Kernel non-goal preserved:
+The kernel still does not silently revise beliefs or self-modify. Overrides create auditable exceptions, not hidden evolution.
+
+5. Kernel Model Inventory — Additions/Refinements (v0.5)
+Orientation (UPDATED)
+
+Add fields:
+
+governance_mode: GovernanceMode
+
+override_scope: set[OverridePermission] (empty if advisory)
+
+override_rationale: str | None
+
+override_constraints: list[Constraint] | list[str] (explicitly bounded)
+
+override_expiry: episode_id (or timestamp; must be ≤ episode end)
+
+Option (UPDATED)
+
+Ensure each Option includes:
+
+action_class: ActionClass (PROBE/LIMITED/COMMIT)
+
+impact: Impact
+
+reversibility: Reversibility
+
+uncertainty: UncertaintyLevel | UncertaintyBand
+
+dependencies: list[artifact_id] (explicit provenance to observations/assumptions)
+
+Recommendation (UPDATED)
+
+Add required fields:
+
+uncertainty_summary
+
+proportionate_action_justification
+
+override_used: bool
+
+override_scope_used: set[OverridePermission] (must be subset of Orientation override_scope)
+
+ReviewRecord (UPDATED)
+
+Add:
+
+override_audit: list[OverrideInvocation] (empty if none)
+
+calibration_notes (compare expected vs actual; no silent updating)
+
+7. File Structure (Kernel-first) — v0.5 updates
+constitution_engine/
+  constitution_engine/
+    models/
+      types.py              # UPDATED: GovernanceMode, ActionClass, UncertaintyLevel/Band, OverridePermission
+      orientation.py        # UPDATED: governance_mode + override fields
+      option.py             # UPDATED: action_class + uncertainty + dependencies
+      recommendation.py     # UPDATED: uncertainty summary + justification + override usage fields
+      review.py             # UPDATED: override audit + calibration notes
+
+    invariants/
+      rules.py              # UPDATED: Uncertainty gating + override invariants
+      validate.py           # UPDATED: violation IDs + remedies around gating/override omissions
+
+10. Definition of “Done” (for Kernel) — v0.5 refinement
+
+The kernel is functionally complete when (in addition to prior v0.4 criteria):
+
+Uncertainty mechanically constrains action intensity (PROBE/LIMITED/COMMIT)
+
+Any override is:
+
+explicitly declared in Orientation
+
+scoped and episode-bounded
+
+logged in ReviewRecord when used
+
+Every Recommendation includes:
+
+uncertainty summary
+
+proportionate action justification
+
+auditable provenance to Observations/Evidence/Assumptions
+
+Change Log (ADD)
+
+v0.5 — Uncertainty Semantics + Constitutional Overrides
+
+Defined uncertainty representations (ordinal/bounded) without requiring probabilistic semantics.
+
+Implemented Proportionate Action gating mechanically via ActionClass (PROBE/LIMITED/COMMIT) constrained by Impact × Reversibility × Uncertainty.
+
+Introduced GovernanceMode (ADVISORY_ONLY default; EXTENDED_ALLOWED opt-in).
+
+Added explicit override mechanism: scoped permissions, rationale, constraints, episode-bounded expiry.
+
+Mandated ReviewRecord override audit entries whenever overrides are invoked.
+
+Strengthened Recommendation requirements: uncertainty summary + proportionate action justification + override usage trace.
+
+v0.5 Invariants (paste-ready list)
+
+INV-UNC-001 (Uncertainty Required):
+Any artifact influencing action (Interpretation, Assumption, Option, Recommendation) must declare uncertainty and confidence.
+
+INV-UNC-002 (Option Gating Fields):
+No Option is valid without impact, reversibility, uncertainty, and dependencies.
+
+INV-ACT-001 (ActionClass Required):
+Every Option must declare ActionClass ∈ {PROBE, LIMITED, COMMIT}.
+
+INV-ACT-002 (Proportionate Action Gate):
+COMMIT actions require uncertainty ≤ threshold derived from impact×reversibility and Orientation risk posture.
+
+INV-REC-001 (Recommendation Justification):
+Recommendations must include uncertainty_summary + proportionate_action_justification.
+
+INV-OVR-001 (Override Explicitness):
+If any override is used, Orientation must declare GovernanceMode=EXTENDED_ALLOWED and specify override_scope + override_rationale.
+
+INV-OVR-002 (Override Scoping):
+override_scope_used ⊆ override_scope (cannot exceed declared permissions).
+
+INV-OVR-003 (Override Review Mandatory):
+If override_used=true, ReviewRecord must include override audit entry.
