@@ -1,0 +1,275 @@
+#project_context_01.31.2026-2
+#project_context/project_context_01.31.2026-2
+
+Thinking Constitution Engine — Project Context (Canonical)
+
+Status: Foundational / Kernel-first
+Design posture: Models-first, domain-agnostic, audit-first, integration-later
+
+1. Purpose (Why this project exists)
+
+The Thinking Constitution Engine (TCE) is a domain-agnostic cognitive kernel designed to govern how decisions and optimizations are made, not what is decided.
+
+It exists to solve a specific class of modern problems:
+
+Information overload and frame contamination
+
+Implicit value smuggling into optimization systems
+
+Overconfident decision-making under uncertainty
+
+Lack of auditability and learning in decision engines
+
+Rather than being an “ultimate decision maker,” the TCE is a constitutional decision-support framework that:
+
+Preserves human agency
+
+Makes uncertainty first-class
+
+Enforces explicit values and constraints
+
+Produces proportionate, explainable recommendations
+
+Compounds judgment over time via review
+
+The engine is designed to sit above any specific optimization algorithm (rules, scoring, ML, GPT) and govern its use.
+
+2. Core Design Principles (Non-negotiable)
+
+Epistemic Sovereignty — No external interpretation has authority without passing through internal process.
+
+Observation Primacy — All reasoning must ground itself in observations, not narratives.
+
+Model Provisionality — Models are tools, not truths; assumptions must be explicit and disposable.
+
+Orientation Explicitness — Values, objectives, and constraints must be stated, not inferred.
+
+Proportionate Action — Action strength must scale with certainty, reversibility, and impact.
+
+Auditability — Every output must trace back to its inputs.
+
+Review & Compression — Outcomes feed back into assumptions, weights, and future behavior.
+
+These principles are enforced structurally via models, constitutionally via invariants, and operationally via runtime validation.
+
+3. Conceptual Scope (What this is / is not)
+This project is:
+
+A cognitive kernel
+
+A governance layer for optimization engines
+
+A structured decision pipeline
+
+A reusable foundation across domains (news, markets, matching, personal decisions)
+
+This project is not:
+
+A single optimization algorithm
+
+A black-box AI decision maker
+
+A product or UI
+
+Tied to any one application (e.g., Assist Network)
+
+Applications consume the engine; they do not define it.
+
+4. High-Level Architecture
+
+The engine enforces a canonical loop:
+
+Observe → Model → Orient → Act → Review
+
+Each stage produces typed artifacts that are explicitly represented as models, stored independently, and linked by provenance.
+
+A DecisionEpisode provides an index-level container over this loop without embedding objects, enabling audit, validation, and review.
+
+5. Kernel Model Inventory (Foundational)
+
+The kernel is built around models first. Logic comes later.
+
+Ingress / Reality
+
+RawInput — Immutable record of what entered the system
+
+Evidence — Pointers to sources, spans, documents
+
+Observation — Reality-anchored facts, measurements, or testimony
+
+Interpretation / Modeling
+
+Interpretation — Structured hypotheses with explicit assumptions and uncertainties
+
+ModelSpec / ModelState — Declared model families and their current state
+
+Orientation / Values
+
+Orientation — Objectives, values, constraints, weights, and risk posture
+
+Action
+
+Option — Possible actions (pre-recommendation), with reversibility, impact, and uncertainty
+
+Recommendation — Ranked, explainable, uncertainty-aware action proposals
+
+Feedback
+
+Outcome — What actually happened
+
+ReviewRecord — Learning artifact: assumption failures, updates, and next questions
+
+Governance
+
+InfoType taxonomy — Explicit typing of information (fact, claim, explanation, value, forecast, etc.)
+
+DecisionEpisode — Index-only container for a full decision loop
+
+AuditTrail — Trace chain from Recommendation → Interpretation → Observation → RawInput
+
+6. Information Typing (Critical Design Choice)
+
+All information is explicitly typed to prevent contamination:
+
+Observational (events, measurements, testimony)
+
+Interpretive (claims, explanations, hypotheses, frames)
+
+Normative (values, preferences, constraints)
+
+Predictive (forecasts, scenarios)
+
+Decision artifacts (Options, Recommendations, Outcomes) are treated as artifacts, not information, and are governed separately.
+
+Rule:
+No information may influence action without declaring its type, provenance, and confidence.
+
+This rule is enforced structurally and validated by invariants.
+
+7. File Structure (Kernel-first)
+constitution_engine/
+  constitution_engine/
+    models/
+      types.py              # InfoType, Confidence, Uncertainty, Reversibility, Impact
+      raw_input.py          # Immutable ingress
+      evidence.py           # Provenance and citations
+      observation.py        # Reality-anchored facts
+      interpretation.py     # Structured hypotheses and assumptions
+      model_spec.py         # Model declarations and state
+      orientation.py        # Values, objectives, constraints
+      option.py             # Possible actions
+      recommendation.py     # Ranked, explainable proposals
+      outcome.py            # What happened
+      review.py             # Learning + updates
+      audit.py              # Lineage and traceability
+      episode.py            # DecisionEpisode index container
+
+    invariants/
+      rules.py              # Constitutional rules
+      validate.py           # Validation harness
+
+    runtime/
+      store.py              # Artifact store interface
+      in_memory_store.py    # Reference implementation
+      engine.py             # Orchestration (logic-free)
+
+
+Rationale:
+
+Models define meaning
+
+Invariants define what is allowed
+
+Runtime orchestrates but does not redefine semantics
+
+8. Relationship to Applications (e.g., Assist Network)
+
+Applications:
+
+Provide raw inputs
+
+Supply orientation defaults
+
+Implement domain-specific observation, interpretation, and scoring logic
+
+Persist and display outputs
+
+Applications do not:
+
+Define information types
+
+Bypass invariants
+
+Collapse uncertainty
+
+Take action without orientation
+
+The engine can be imported as a library or deployed as a service with no conceptual change.
+
+9. Sequential Update Strategy (Maintaining Awareness)
+
+This document is living and versioned.
+
+When updating:
+
+Add a Change Log entry
+
+State why the change exists
+
+Specify which layer changed (model / invariant / runtime)
+
+Note downstream implications
+
+Allowed update types:
+
+Adding a new InfoType
+
+Refining required metadata
+
+Adding a new invariant
+
+Introducing a new kernel model
+
+Disallowed updates (without explicit review):
+
+Collapsing model boundaries
+
+Allowing action without orientation
+
+Introducing opaque scoring
+
+10. Definition of “Done” (for the Kernel)
+
+The kernel is considered functionally complete when:
+
+Every Recommendation is fully traceable
+
+Uncertainty meaningfully changes behavior
+
+Proportionate Action is constitutionally enforced
+
+Review produces actionable updates
+
+No domain concepts are embedded in the core
+
+At that point, policies and applications can safely build on top.
+
+11. Canonical Summary
+
+The Thinking Constitution Engine is a cognitive governance kernel that makes decision-making explicit, auditable, value-aware, and uncertainty-sensitive — while preserving human agency.
+
+This document serves as the single source of truth for intent, scope, and constraints, and should be updated deliberately as the system evolves.
+
+Change Log
+
+v0.1 — Initial kernel context and models-first architecture defined
+
+v0.2 — Kernel enforcement implemented:
+
+Information typing clarified and enforced
+
+Proportionate Action invariant introduced
+
+DecisionEpisode indexing added
+
+Runtime validation harness and artifact store introduced
