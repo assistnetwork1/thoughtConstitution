@@ -1,0 +1,320 @@
+#project_context_02.04.2026-1
+#project_context/project_context_02.04.2026-1
+
+Thinking Constitution Engine — Project Context (Canonical)
+v0.5.1 — ActionClass Gate Migration Complete
+
+Patch focus:
+Complete the v0.5.1 constitutional migration by replacing legacy numeric “strength caps”
+with canonical ActionClass governance (PROBE / LIMITED / COMMIT), while preserving a
+thin-slice, runnable, test-backed kernel.
+
+Non-goals remain:
+• No Bayesian updating
+• No utility maximization
+• No autonomous execution
+• No silent belief revision (all exceptions require explicit review)
+
+----------------------------------------------------------------
+0. Current Status Snapshot (as of 2026-02-03)
+----------------------------------------------------------------
+
+What is working now (confirmed by execution + tests):
+
+• The kernel runs end-to-end:
+  Evidence → Observation → Option → Recommendation → Review → Episode → Validation
+
+• ArtifactStore + resolver logic is stable and deterministic.
+
+• Invariants are executable predicates; validation orchestrates them; tests assert violations.
+
+• 188 tests pass, including:
+  – ActionClass gating
+  – Override existence requirements
+  – Review audit enforcement
+  – Missing-reference detection
+  – Episode-level orchestration
+
+• A runnable simulation exists:
+  `python -m constitution_engine.scripts.quick_sim`
+  demonstrating a full DecisionEpisode validation with no violations.
+
+Stable repo pattern remains:
+
+(a) invariants define rules  
+(b) validate orchestrates resolution + enforcement  
+(c) tests lock behavior  
+
+----------------------------------------------------------------
+1. Purpose (Why this engine exists)
+----------------------------------------------------------------
+
+The Thinking Constitution Engine (TCE) is a **domain-agnostic governance kernel**
+that standardizes **how decisions are formed, constrained, justified, and reviewed**.
+
+It exists to solve:
+
+• Information overload / frame contamination  
+• Implicit value smuggling into recommendations  
+• Overconfident action under uncertainty  
+• Lack of auditability (“why was this recommended?”)  
+• Lack of structured learning loops (“what happened after we acted?”)
+
+TCE is **not** an autonomous decision maker.
+It is a **constitutional layer** governing decision support.
+
+----------------------------------------------------------------
+2. Design Posture (Non-negotiables)
+----------------------------------------------------------------
+
+Kernel-first  
+• Models + invariants are the core product.
+• UI, apps, and integrations come later.
+
+Audit-first  
+• Every recommendation is traceable to upstream artifacts.
+• Every exception is explicit and reviewable.
+
+Proportionate Action  
+• Uncertainty constrains allowable action intensity.
+• High impact + low reversibility demands weaker action or stronger evidence.
+
+----------------------------------------------------------------
+3. Canonical Flow
+(Observe → Model → Orient → Act → Review)
+----------------------------------------------------------------
+
+Observe
+• Evidence: provenance anchor (sources, spans)
+• Observation: reality-anchored statements (InfoType constrained)
+
+Orient
+• Orientation: objectives, constraints, governance mode, override permissions
+
+Act
+• Option: candidate actions (auditable, scoped, risk-described)
+• Recommendation: ranked options + justification + override usage
+
+Review
+• ReviewRecord: override audit + calibration notes (thin-slice implemented)
+
+Episode
+• DecisionEpisode: binds all artifacts into a governed decision unit
+
+----------------------------------------------------------------
+4. Core Semantics
+----------------------------------------------------------------
+
+4.1 Confidence vs Uncertainty
+
+• Confidence: how well supported a claim is
+• Uncertainty: remaining fragility even if supported
+
+Both must be explicit for action-relevant artifacts.
+
+4.2 Uncertainty encoding (v0.5.1)
+
+Storage:
+• Uncertainty.level ∈ [0,1] (non-Bayesian container)
+
+Governance:
+• UncertaintyLevel ∈ {LOW, MED, HIGH, UNKNOWN}
+• Derived via stable band mapping (bridge)
+
+Rule:
+Any artifact influencing action must declare:
+• confidence
+• uncertainty
+• provenance
+
+----------------------------------------------------------------
+5. Proportionate Action Gating (v0.5.1 canonical)
+----------------------------------------------------------------
+
+5.1 Required Option fields
+
+Each Option declares:
+• impact ∈ [0,1]
+• reversibility ∈ [0,1]
+• uncertainties (numeric, mapped to ordinal)
+• action_class ∈ {PROBE, LIMITED, COMMIT}
+• upstream references (auditability)
+
+5.2 Canonical mapping (bridge)
+
+Numeric → ordinal bands:
+• ImpactLevel ∈ {LOW, MED, HIGH}
+• ReversibilityLevel ∈ {HIGH, MED, LOW}
+• UncertaintyLevel ∈ {LOW, MED, HIGH, UNKNOWN}
+
+5.3 Gate rule (implemented)
+
+Let riskiness = f(ImpactLevel, ReversibilityLevel)
+
+Then:
+
+• risk = HIGH
+  → uncertainty must be LOW
+  → else PROBE only
+
+• risk = MED
+  → uncertainty ≤ MED
+  → else PROBE only
+
+• risk = LOW
+  → any uncertainty allowed (must be declared)
+
+Invariant:
+A Recommendation must not include an Option whose
+ActionClass violates the gate **unless an explicit override is used**.
+
+----------------------------------------------------------------
+6. Constitutional Overrides (v0.5.1 thin-slice)
+----------------------------------------------------------------
+
+6.1 Why overrides exist
+
+Real systems require exceptions.
+The constitution prevents exceptions from becoming silent drift.
+
+Overrides are:
+• explicit
+• scoped
+• episode-bounded
+• review-audited
+
+6.2 Override declaration (Orientation)
+
+Orientation declares:
+• governance_mode ∈ {ADVISORY_ONLY, EXTENDED_ALLOWED}
+• override_scope (bounded permission set)
+• override_rationale
+
+6.3 Override usage (Recommendation)
+
+If gating is bypassed:
+• override_used = true
+• override_scope_used declared
+
+Invariant:
+override_scope_used ⊆ Orientation.override_scope
+
+----------------------------------------------------------------
+7. Review Invariants (Implemented)
+----------------------------------------------------------------
+
+INV-REV-001  
+If any Recommendation sets override_used = true,
+the Episode must include at least one ReviewRecord.
+
+INV-REV-002  
+The ReviewRecord must include an override audit entry
+for each overridden Recommendation, containing:
+• recommendation_id
+• override_scope_used (non-empty)
+• rationale (non-empty)
+
+These are fully enforced and test-covered.
+
+----------------------------------------------------------------
+8. Implementation State in Repo
+----------------------------------------------------------------
+
+8.1 Thin-slice runnable kernel includes:
+
+• Artifact models
+• InMemory ArtifactStore
+• Resolution + validation harness
+• Review + override enforcement
+• quick_sim executable example
+
+8.2 Invariants enforced today
+
+• Observations restricted to observational InfoTypes
+• Evidence must have sources + URIs
+• Options must declare ActionClass
+• Proportionate Action gate enforced
+• Overrides must be explicit and reviewed
+• Missing references detected deterministically
+
+8.3 What is intentionally incomplete
+
+• Learning loop (Outcome → calibration → model update)
+• Assumption tracking as first-class artifacts
+• Override expiry / constraints beyond scope
+• Any autonomous belief updating
+
+----------------------------------------------------------------
+9. File Structure (Kernel-first)
+----------------------------------------------------------------
+
+constitution_engine/
+  constitution_engine/
+    models/
+      types.py
+      evidence.py
+      observation.py
+      option.py
+      recommendation.py
+      review.py
+      episode.py
+
+    invariants/
+      rules.py
+      validate.py
+
+    runtime/
+      store.py
+
+    scripts/
+      quick_sim.py
+
+  tests/
+    test_action_gating.py
+    test_review_override.py
+    test_validate.py
+    test_smoke.py
+
+----------------------------------------------------------------
+10. Definition of Done — v0.5.1 (Achieved)
+----------------------------------------------------------------
+
+✔ Action intensity governed by ActionClass gating  
+✔ Uncertainty constrains allowable action  
+✔ Overrides explicit, scoped, audited  
+✔ Review enforcement wired and tested  
+✔ Kernel runnable end-to-end  
+✔ No silent exception paths  
+
+----------------------------------------------------------------
+11. Immediate Next Step (Planned — Next Session)
+----------------------------------------------------------------
+
+Introduce a **Learning Loop**:
+
+• OutcomeRecord artifact
+• Review-based calibration updates
+• Non-Bayesian uncertainty adjustment
+• New invariants enforcing outcome closure
+• Extended quick_sim demonstrating:
+  episode → action → outcome → review → recalibration
+
+This will complete the “decision → consequence → learning” arc
+without violating auditability or epistemic sovereignty.
+
+----------------------------------------------------------------
+12. Change Log
+----------------------------------------------------------------
+
+v0.5
+• Introduced uncertainty semantics
+• Defined ActionClass governance
+• Defined override canon
+
+v0.5.1 (02.03.2026-3)
+• Identified mismatch between numeric strength caps and canon
+
+v0.5.1 (02.03.2026-4 — this document)
+• ActionClass gating fully implemented
+• Override + review invariants enforced
+• Kernel validated by execution and tests

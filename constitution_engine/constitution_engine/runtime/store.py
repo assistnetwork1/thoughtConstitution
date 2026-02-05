@@ -6,8 +6,8 @@ from typing import Any, Dict, Iterable, Optional, Protocol, Sequence, Tuple, Typ
 T = TypeVar("T")
 
 
-@dataclass(frozen=True)
-class ResolveError:
+@dataclass
+class ResolveError(Exception):
     artifact_type: str
     artifact_id: str
     message: str = "not found"
@@ -49,12 +49,25 @@ def _type_key(cls: Type[Any]) -> str:
 def _infer_primary_id(obj: Any) -> str:
     """
     Heuristic ID inference (deterministic):
+    0) Special-case CalibrationNote -> calibration_id (avoid episode_id/review_id collisions).
     1) Prefer "<classname_lower>_id" when present (e.g. Recommendation -> recommendation_id)
-    2) Prefer explicit common primaries (review_id, recommendation_id, option_id, orientation_id)
-       before episode_id to avoid mis-keying ReviewRecord by episode_id.
+    2) Prefer explicit common primaries (review_id, recommendation_id, option_id, orientation_id, outcome_id,
+       calibration_id) before episode_id to avoid mis-keying ReviewRecord by episode_id.
     3) If exactly one "*_id" attribute exists and is a str, use it.
     4) If multiple candidates exist, prefer shortest attr name (then lexicographic) deterministically.
     """
+    # 0) Hard preference for CalibrationNote
+    if type(obj).__name__ == "CalibrationNote":
+        val = getattr(obj, "calibration_id", None)
+        if isinstance(val, str) and val:
+            return val
+
+    # 0b) Hard preference for ChoiceRecord (avoid episode_id/recommendation_id collisions)
+    if type(obj).__name__ == "ChoiceRecord":
+        val = getattr(obj, "choice_id", None)
+        if isinstance(val, str) and val:
+            return val
+
     cls_name = type(obj).__name__.lower()
     preferred = f"{cls_name}_id"
 
@@ -65,7 +78,15 @@ def _infer_primary_id(obj: Any) -> str:
             return val
 
     # 2) common primaries (avoid episode_id stealing ReviewRecord)
-    for attr in ("review_id", "recommendation_id", "option_id", "orientation_id"):
+    for attr in (
+        "review_id",
+        "recommendation_id",
+        "option_id",
+        "orientation_id",
+        "outcome_id",
+        "calibration_id",
+        "choice_id",  # include explicitly as a common primary
+    ):
         if hasattr(obj, attr):
             val = getattr(obj, attr, None)
             if isinstance(val, str) and val:
@@ -130,7 +151,8 @@ class InMemoryArtifactStore:
     def must_get(self, cls: Type[T], obj_id: str) -> T:
         obj = self.get(cls, obj_id)
         if obj is None:
-            raise KeyError(obj_id)
+            # Raise ResolveError (not KeyError) so validators can aggregate deterministically.
+            raise ResolveError(artifact_type=cls.__name__, artifact_id=obj_id)
         return obj
 
     def has(self, cls: Type[Any], obj_id: str) -> bool:

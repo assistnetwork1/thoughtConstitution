@@ -10,6 +10,8 @@ from constitution_engine.models.option import Option, OptionKind
 from constitution_engine.models.recommendation import Recommendation
 from constitution_engine.models.types import InfoType
 from constitution_engine.models.review import ReviewRecord
+from constitution_engine.models.outcome import Outcome
+from constitution_engine.models.choice import ChoiceRecord
 
 
 @dataclass(frozen=True)
@@ -260,7 +262,6 @@ def require_recommendation_provenance_overlaps_top_option(
 
     top = options_by_id.get(top_id)
     if top is None:
-        # Missing refs handled elsewhere
         return tuple()
 
     rec_obs = set(rec.observation_ids)
@@ -394,7 +395,6 @@ def bucket_impact_level(opt: Option, *, high: float = 0.7, med: float = 0.4) -> 
     """
     v = getattr(getattr(opt, "impact", None), "value", None)
     if v is None:
-        # Treat missing impact as high-risk signal during bridge.
         return ImpactLevel.HIGH
     if v >= high:
         return ImpactLevel.HIGH
@@ -667,6 +667,249 @@ def require_proportionate_action(
 
 
 # ---------------------------
+# Choices (Recommend → Choose → Act)
+# ---------------------------
+
+def require_choice_exists_if_episode_acted(
+    *,
+    episode_id: str,
+    acted: bool,
+    choice_ids: Sequence[str],
+) -> Sequence[InvariantViolation]:
+    """
+    INV-CHO-001:
+      If an episode is marked acted=True, it must include at least one choice_id.
+
+    (Object-level resolution of choice_ids is handled in validate.py via store resolution.)
+    """
+    if not acted:
+        return tuple()
+    if choice_ids:
+        return tuple()
+
+    return (
+        InvariantViolation(
+            rule="INV-CHO-001",
+            message=f"DecisionEpisode {episode_id} is marked acted=True but has no choice_ids (acting requires a ChoiceRecord).",
+        ),
+    )
+
+
+def require_choices_reference_existing_recommendations_and_options(
+    choices: Iterable[ChoiceRecord],
+    *,
+    recommendations_by_id: Mapping[str, Recommendation],
+    options_by_id: Mapping[str, Option],
+) -> Sequence[InvariantViolation]:
+    """
+    INV-CHO-002:
+      Each ChoiceRecord must reference an existing Recommendation and Option.
+    """
+    violations: list[InvariantViolation] = []
+    for ch in choices:
+        if ch.recommendation_id and ch.recommendation_id not in recommendations_by_id:
+            violations.append(
+                InvariantViolation(
+                    rule="INV-CHO-002",
+                    message=(
+                        f"ChoiceRecord {ch.choice_id} references missing Recommendation "
+                        f"{ch.recommendation_id}."
+                    ),
+                )
+            )
+
+        if ch.option_id and ch.option_id not in options_by_id:
+            violations.append(
+                InvariantViolation(
+                    rule="INV-CHO-002",
+                    message=(
+                        f"ChoiceRecord {ch.choice_id} references missing Option "
+                        f"{ch.option_id}."
+                    ),
+                )
+            )
+
+    return tuple(violations)
+
+
+def require_choice_option_is_ranked_unless_override(
+    choices: Iterable[ChoiceRecord],
+    *,
+    recommendations_by_id: Mapping[str, Recommendation],
+) -> Sequence[InvariantViolation]:
+    """
+    INV-CHO-003:
+      A ChoiceRecord.option_id must be among the referenced Recommendation.ranked_options,
+      unless choice.used_override == True.
+    """
+    violations: list[InvariantViolation] = []
+
+    for ch in choices:
+        rec = recommendations_by_id.get(ch.recommendation_id)
+        if rec is None:
+            # INV-CHO-002 will cover missing recommendation
+            continue
+
+        if ch.used_override:
+            continue
+
+        ranked_ids = {ro.option_id for ro in rec.ranked_options}
+        if ch.option_id not in ranked_ids:
+            violations.append(
+                InvariantViolation(
+                    rule="INV-CHO-003",
+                    message=(
+                        f"ChoiceRecord {ch.choice_id} selected option_id={ch.option_id} "
+                        f"which is not ranked by Recommendation {rec.recommendation_id} "
+                        "(set used_override=True if this is an intentional override)."
+                    ),
+                )
+            )
+
+    return tuple(violations)
+
+
+def validate_choices(
+    choices: Iterable[ChoiceRecord],
+    *,
+    recommendations_by_id: Mapping[str, Recommendation],
+    options_by_id: Mapping[str, Option],
+) -> Sequence[InvariantViolation]:
+    """
+    Aggregate choice validations (object-level).
+    """
+    violations: list[InvariantViolation] = []
+    violations.extend(
+        require_choices_reference_existing_recommendations_and_options(
+            choices,
+            recommendations_by_id=recommendations_by_id,
+            options_by_id=options_by_id,
+        )
+    )
+    violations.extend(
+        require_choice_option_is_ranked_unless_override(
+            choices,
+            recommendations_by_id=recommendations_by_id,
+        )
+    )
+    return tuple(violations)
+
+
+# ---------------------------
+# Outcomes (Act → Outcome)
+# ---------------------------
+
+def require_outcomes_reference_existing_recommendations_or_options(
+    outcomes: Iterable[Outcome],
+    *,
+    recommendations_by_id: Mapping[str, Recommendation],
+    options_by_id: Mapping[str, Option],
+) -> Sequence[InvariantViolation]:
+    """
+    INV-OUT-001:
+      Each Outcome must reference at least one anchor:
+        - recommendation_id OR chosen_option_id
+
+      And any referenced IDs must exist.
+    """
+    violations: list[InvariantViolation] = []
+    for out in outcomes:
+        has_rec = bool(out.recommendation_id)
+        has_opt = bool(out.chosen_option_id)
+
+        if not (has_rec or has_opt):
+            violations.append(
+                InvariantViolation(
+                    rule="INV-OUT-001",
+                    message=(
+                        f"Outcome {out.outcome_id} is unanchored: "
+                        "recommendation_id and chosen_option_id are both empty."
+                    ),
+                )
+            )
+            continue
+
+        if out.recommendation_id and out.recommendation_id not in recommendations_by_id:
+            violations.append(
+                InvariantViolation(
+                    rule="INV-OUT-001",
+                    message=(
+                        f"Outcome {out.outcome_id} references missing Recommendation "
+                        f"{out.recommendation_id}."
+                    ),
+                )
+            )
+
+        if out.chosen_option_id and out.chosen_option_id not in options_by_id:
+            violations.append(
+                InvariantViolation(
+                    rule="INV-OUT-001",
+                    message=(
+                        f"Outcome {out.outcome_id} references missing Option "
+                        f"{out.chosen_option_id}."
+                    ),
+                )
+            )
+
+    return tuple(violations)
+
+
+def require_outcome_exists_if_episode_acted(
+    *,
+    episode_id: str,
+    acted: bool,
+    has_recommendation: bool,
+    outcome_ids: Sequence[str],
+) -> Sequence[InvariantViolation]:
+    """
+    INV-OUT-002:
+      If an episode both:
+        - has a recommendation, and
+        - acted == True,
+      then it must include at least one outcome_id.
+
+    We keep 'acted' explicit so validate_episode can decide the policy definition of "acted"
+    (e.g., via episode.meta['acted']=True, or a stored action event, etc.).
+    """
+    if not has_recommendation:
+        return tuple()
+    if not acted:
+        return tuple()
+    if outcome_ids:
+        return tuple()
+
+    return (
+        InvariantViolation(
+            rule="INV-OUT-002",
+            message=(
+                f"DecisionEpisode {episode_id} is marked acted=True and has recommendations "
+                "but has no outcome_ids (acting requires outcome logging)."
+            ),
+        ),
+    )
+
+
+def validate_outcomes(
+    outcomes: Iterable[Outcome],
+    *,
+    recommendations_by_id: Mapping[str, Recommendation],
+    options_by_id: Mapping[str, Option],
+) -> Sequence[InvariantViolation]:
+    """
+    Aggregate outcome validations (object-level).
+    """
+    violations: list[InvariantViolation] = []
+    violations.extend(
+        require_outcomes_reference_existing_recommendations_or_options(
+            outcomes,
+            recommendations_by_id=recommendations_by_id,
+            options_by_id=options_by_id,
+        )
+    )
+    return tuple(violations)
+
+
+# ---------------------------
 # Orchestrators
 # ---------------------------
 
@@ -805,7 +1048,6 @@ def require_review_audits_overrides(
             ),
         )
 
-    # index audit entries by recommendation_id
     by_rec_id: dict[str, Mapping[str, object]] = {}
     for entry in overrides:
         if isinstance(entry, dict):

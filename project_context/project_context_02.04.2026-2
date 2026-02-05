@@ -1,0 +1,377 @@
+#project_context_02.04.2026-2
+#project_context/project_context_02.04.2026-2
+
+Thinking Constitution Engine — Project Context (Canonical)
+v0.5.1 — ActionClass Gate Migration Complete + Intake/Materialize Pipeline Stabilized
+
+Patch focus:
+Complete the v0.5.1 constitutional migration by replacing legacy numeric “strength caps”
+with canonical ActionClass governance (PROBE / LIMITED / COMMIT), while preserving a
+thin-slice, runnable, test-backed kernel.
+
+Non-goals remain:
+• No Bayesian updating
+• No utility maximization
+• No autonomous execution
+• No silent belief revision (all exceptions require explicit review)
+
+---
+
+0. Current Status Snapshot (as of 2026-02-05)
+
+---
+
+What is working now (confirmed by execution + tests):
+
+• **Kernel runs end-to-end with Intake + Materialize:**
+RawInput → Evidence → Observation → Interpretation → Option → Recommendation
+→ Materialize (Orientation + Episode) → Validation
+
+• **ArtifactStore + resolver logic stable and deterministic.**
+
+• **Invariants are executable predicates; validation orchestrates them; tests assert behavior.**
+
+• **Intake adapter is now “frozen” at the contract level:**
+– Normalizes drafts into canonical model artifacts
+– Links provenance IDs correctly (obs/evidence, options, rec)
+– Produces ranked options with required `score` + `rationale` fields
+– Produces Recommendation compatible with strict model constraints (orientation_id required at materialize time)
+
+• **Materialize step exists and passes smoke tests:**
+– Creates default Orientation
+– Stores Evidence/Observations/Interpretations/Options/Recommendation
+– Stores DecisionEpisode as IDs-only binder
+– Runs validate_episode successfully after materialization
+
+• **Demo script runs and prints a DraftEpisode** (`python -m constitution_engine.scripts.run_intake_demo`)
+showing a realistic “Decide whether to build a demo this month” scenario with missing-input prompting and a ranked recommendation.
+
+• **Test suite status:**
+**191 tests pass** (fast, deterministic).
+
+Stable repo pattern remains:
+(a) invariants define rules
+(b) validate orchestrates resolution + enforcement
+(c) tests lock behavior
+
+---
+
+1. Purpose (Why this engine exists)
+
+---
+
+The Thinking Constitution Engine (TCE) is a **domain-agnostic governance kernel**
+that standardizes **how decisions are formed, constrained, justified, and reviewed**.
+
+It exists to solve:
+
+• Information overload / frame contamination
+• Implicit value smuggling into recommendations
+• Overconfident action under uncertainty
+• Lack of auditability (“why was this recommended?”)
+• Lack of structured learning loops (“what happened after we acted?”)
+
+TCE is **not** an autonomous decision maker.
+It is a **constitutional layer** governing decision support.
+
+---
+
+2. Design Posture (Non-negotiables)
+
+---
+
+Kernel-first
+• Models + invariants are the core product.
+• UI, apps, and integrations come later.
+
+Audit-first
+• Every recommendation is traceable to upstream artifacts.
+• Every exception is explicit and reviewable.
+
+Proportionate Action
+• Uncertainty constrains allowable action intensity.
+• High impact + low reversibility demands weaker action or stronger evidence.
+
+---
+
+3. Canonical Flow
+   (Observe → Model → Orient → Act → Review)
+
+---
+
+Observe
+• Evidence: provenance anchor (sources, spans, summary)
+• Observation: reality-anchored statements (InfoType constrained)
+
+Model
+• Interpretation: structured hypothesis/explanation tying observations together
+(interpretive InfoTypes only)
+
+Orient
+• Orientation: objectives, constraints, risk posture, governance mode, override permissions
+
+Act
+• Option: candidate actions (auditable, risk-described, ActionClass declared)
+• Recommendation: ranked options + provenance + override usage record
+
+Review
+• ReviewRecord: override audit + calibration notes (override enforcement implemented)
+
+Episode
+• DecisionEpisode: IDs-only binder across full loop
+
+---
+
+4. Core Semantics
+
+---
+
+4.1 Confidence vs Uncertainty
+
+• Confidence: how well supported a claim is
+• Uncertainty: remaining fragility even if supported
+
+Both must be explicit for action-relevant artifacts.
+
+4.2 Uncertainty encoding (v0.5.1)
+
+Storage:
+• Uncertainty.level ∈ [0,1] (non-Bayesian container)
+
+Governance:
+• UncertaintyLevel ∈ {LOW, MED, HIGH, UNKNOWN}
+• Derived via stable band mapping (bridge)
+
+Rule:
+Any artifact influencing action must declare:
+• confidence
+• uncertainty
+• provenance
+
+---
+
+5. Proportionate Action Gating (v0.5.1 canonical)
+
+---
+
+5.1 Required Option fields
+
+Each Option declares:
+• impact ∈ [0,1] (Impact wrapper)
+• reversibility ∈ [0,1] (Reversibility wrapper)
+• uncertainties (Sequence[Uncertainty])
+• action_class ∈ {probe, limited, commit} (bridge-safe string/enum)
+• upstream references (auditability)
+
+5.2 Canonical mapping (bridge)
+
+Numeric → ordinal bands:
+• ImpactLevel ∈ {LOW, MED, HIGH}
+• ReversibilityLevel ∈ {HIGH, MED, LOW}
+• UncertaintyLevel ∈ {LOW, MED, HIGH, UNKNOWN}
+
+5.3 Gate rule (implemented)
+
+Let riskiness = f(ImpactLevel, ReversibilityLevel)
+
+Then:
+
+• risk = HIGH
+→ uncertainty must be LOW
+→ else PROBE only
+
+• risk = MED
+→ uncertainty ≤ MED
+→ else PROBE only
+
+• risk = LOW
+→ any uncertainty allowed (must be declared)
+
+Invariant:
+A Recommendation must not include an Option whose
+ActionClass violates the gate **unless an explicit override is used**.
+
+---
+
+6. Constitutional Overrides (v0.5.1 thin-slice)
+
+---
+
+6.1 Why overrides exist
+Real systems require exceptions.
+The constitution prevents exceptions from becoming silent drift.
+
+Overrides are:
+• explicit
+• scoped
+• episode-bounded
+• review-audited
+
+6.2 Override usage (Recommendation)
+
+If gating is bypassed:
+• override_used = true
+• override_scope_used declared
+
+6.3 Review enforcement (implemented)
+
+INV-REV-001
+If any Recommendation sets override_used = true,
+the Episode must include at least one ReviewRecord.
+
+INV-REV-002
+The ReviewRecord must include an override audit entry
+for each overridden Recommendation containing:
+• recommendation_id
+• override_scope_used (non-empty)
+• rationale (non-empty)
+
+---
+
+7. Intake + Materialize (Now Stable)
+
+---
+
+7.1 Intake adapter responsibilities (frozen)
+
+• Convert RawInput → Evidence (provenance anchor)
+• Convert DraftBundle → Observations/Interpretations/Options
+• Auto-insert PROBE option when MissingInputs severity is MED/HIGH (policy controlled)
+• Build Recommendation with RankedOption requirements satisfied (score + rationale)
+• Keep everything safe-defaulted and auditable
+
+7.2 Materialize responsibilities (thin-slice)
+
+• Create default Orientation (minimal fields)
+• Persist artifacts into ArtifactStore
+• Persist DecisionEpisode binder
+• Ensure Recommendation gets orientation_id and provenance pointers at materialize time
+
+---
+
+8. Implementation State in Repo
+
+---
+
+Thin-slice runnable kernel includes:
+
+• Artifact models
+• InMemory ArtifactStore
+• Resolution + validation harness
+• Review + override enforcement
+• Intake adapter + materialize path
+• Runnable intake demo script
+• Fast deterministic test suite
+
+Invariants enforced today:
+
+• Observations restricted to observational InfoTypes
+• Evidence must have sources + URIs
+• Recommendation must have orientation_id + ranked_options + provenance
+• EXECUTE options must be auditable + oriented + have uncertainty declared
+• ActionClass declared + gate enforced (v0.5.1)
+• Overrides require review + review must audit overrides
+• Missing references detected deterministically
+
+---
+
+9. What is intentionally incomplete
+
+---
+
+• **Learning loop closure:** Outcome → Review calibration → future model adjustment
+• Assumption tracking as first-class persisted artifacts (Interpretation supports Assumptions structurally, but lifecycle isn’t enforced)
+• Override expiry rules beyond “review required”
+• Any autonomous belief updating
+
+---
+
+10. File Structure (Kernel-first)
+
+---
+
+constitution_engine/
+constitution_engine/
+models/
+types.py
+evidence.py
+observation.py
+interpretation.py
+option.py
+recommendation.py
+review.py
+outcome.py          (added / planned)
+episode.py
+
+```
+intake/  
+  adapter.py  
+  materialize.py  
+  act.py              (planned / in-progress)  
+
+invariants/  
+  rules.py  
+  validate.py  
+
+runtime/  
+  store.py  
+
+scripts/  
+  run_intake_demo.py  
+  quick_sim.py  
+```
+
+tests/
+test_action_gating.py
+test_review_override.py
+test_intake_adapter_smoke.py
+test_materialize_smoke.py
+test_outcome_invariant_smoke.py   (added / planned)
+
+---
+
+11. Immediate Next Step (Planned — v0.5.2 Learning Loop)
+
+---
+
+Introduce **Outcome closure** to complete the “decision → consequence → learning” arc:
+
+New artifact:
+• Outcome (OutcomeRecord): what happened after acting
+
+New episode fields / lifecycle:
+• act_on_option marks episode as acted and records chosen option
+• logging an Outcome appends outcome_id to the Episode
+
+New invariants:
+• **INV-OUT-001:** If episode has recommendation_ids and episode.acted=True → must have outcome_ids
+• If override_used=True → review required (already enforced)
+
+Extended demo:
+draft → materialize → validate → (pick option) → act → validate (should fail INV-OUT-001)
+→ outcome → validate (pass) → review → validate (pass)
+
+This completes “closure” without violating auditability or epistemic sovereignty.
+
+---
+
+12. Change Log
+
+---
+
+v0.5
+• Introduced uncertainty semantics
+• Defined ActionClass governance
+• Defined override canon
+
+v0.5.1 (02.03.2026-3)
+• Identified mismatch between numeric strength caps and canon
+
+v0.5.1 (02.04–02.05.2026)
+• Intake adapter aligned with canonical models (Interpretation/Option/Recommendation contracts)
+• RankedOption score+rationale requirement satisfied
+• Materialize path added and validated
+• Test suite now **191 passed**
+
+---
+
