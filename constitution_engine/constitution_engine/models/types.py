@@ -179,9 +179,10 @@ class Evidence:
     id: str
     raw_input_id: str
     retrieved_at: datetime
-    locator: str  # uri/path/etc
+    locator: str
     span: Optional[str] = None
     content_hash: Optional[str] = None
+
 
 
 @dataclass(frozen=True)

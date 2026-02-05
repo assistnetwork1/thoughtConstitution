@@ -60,6 +60,11 @@ class Option:
     title: str = ""
     description: str = ""
 
+    # v0.5.1 bridge: constitutional action class gate (probe/limited/commit)
+    # - None => not declared (should trigger INV-ACT-001 for EXECUTE options)
+    # - expected values: "probe" | "limited" | "commit" (case-insensitive handled by rules gate)
+    action_class: Optional[str] = None
+
     action_payload: Any = None
 
     orientation_id: Optional[str] = None
@@ -93,6 +98,14 @@ class Option:
 
     def with_kind(self, kind: OptionKind) -> "Option":
         return replace(self, kind=kind)
+
+    def with_action_class(self, action_class: Optional[str]) -> "Option":
+        """
+        v0.5.1 bridge field setter.
+        - None => not declared (should trigger INV-ACT-001 for EXECUTE options)
+        - expected string values: "probe" | "limited" | "commit"
+        """
+        return replace(self, action_class=action_class)
 
     def with_action_payload(self, payload: Any) -> "Option":
         return replace(self, action_payload=payload)

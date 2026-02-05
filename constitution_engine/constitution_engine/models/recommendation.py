@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Mapping, Optional, Sequence, Tuple, Any
+from typing import Any, Mapping, Optional, Sequence, Tuple
 
 from .types import Confidence, Uncertainty, new_id, now_utc
 
@@ -77,6 +77,11 @@ class RankedOption:
         if not (0.0 <= float(self.score) <= 1.0):
             raise ValueError("RankedOption.score must be between 0.0 and 1.0")
 
+        # Normalize sequences defensively (immutability)
+        object.__setattr__(self, "uncertainties", tuple(self.uncertainties))
+        object.__setattr__(self, "tradeoffs", tuple(self.tradeoffs))
+        object.__setattr__(self, "constraint_checks", tuple(self.constraint_checks))
+
     # -----------------------
     # Immutability helpers
     # -----------------------
@@ -106,6 +111,12 @@ class RankedOption:
 class Recommendation:
     """
     Ranked, explainable, uncertainty-aware action proposals.
+
+    v0.5.1 additions (for override governance + review enforcement):
+      - override_used: whether any constitutional override was required/used
+      - override_scope_used: permissions actually invoked (subset of Orientation.override_scope)
+
+    (Full lifecycle enforcement is handled by invariants + ReviewRecord; model stores the facts.)
     """
     recommendation_id: str = field(default_factory=lambda: new_id("rec"))
     created_at: datetime = field(default_factory=now_utc)
@@ -118,15 +129,33 @@ class Recommendation:
     interpretation_ids: Sequence[str] = field(default_factory=tuple)
     model_state_ids: Sequence[str] = field(default_factory=tuple)
 
+    # v0.5.1 — override usage logging
+    override_used: bool = False
+    override_scope_used: Sequence[str] = field(default_factory=tuple)
+
+    # v0.5.1 — justification outputs (kept permissive at model level; invariants may require non-empty)
+    uncertainty_summary: Optional[str] = None
+    proportionate_action_justification: Optional[str] = None
+
     summary: Optional[str] = None
     meta: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        _validate_contiguous_ranks(self.ranked_options)
+        # Keep this strict; Recommendations without Orientation violate the kernel loop.
+        # (If you want to allow drafts, add an explicit draft flag rather than empty orientation_id.)
         if self.orientation_id == "":
-            # Keep this strict; Recommendations without Orientation violate the kernel loop.
-            # (If you want to allow drafts, add an explicit draft flag rather than empty orientation_id.)
             raise ValueError("Recommendation.orientation_id must be set (non-empty)")
+
+        # Normalize sequences defensively to tuples so immutability is real.
+        object.__setattr__(self, "ranked_options", tuple(self.ranked_options))
+        _validate_contiguous_ranks(self.ranked_options)
+
+        object.__setattr__(self, "evidence_ids", tuple(self.evidence_ids))
+        object.__setattr__(self, "observation_ids", tuple(self.observation_ids))
+        object.__setattr__(self, "interpretation_ids", tuple(self.interpretation_ids))
+        object.__setattr__(self, "model_state_ids", tuple(self.model_state_ids))
+
+        object.__setattr__(self, "override_scope_used", tuple(self.override_scope_used))
 
     # -----------------------
     # Immutability helpers
@@ -137,6 +166,18 @@ class Recommendation:
 
     def with_meta(self, **meta: object) -> "Recommendation":
         return replace(self, meta=_merge_meta(self.meta, meta))
+
+    def with_override_used(self, used: bool) -> "Recommendation":
+        return replace(self, override_used=bool(used))
+
+    def with_override_scope_used(self, *scope_items: str) -> "Recommendation":
+        return replace(self, override_scope_used=_append_unique_str(self.override_scope_used, *scope_items))
+
+    def with_uncertainty_summary(self, text: Optional[str]) -> "Recommendation":
+        return replace(self, uncertainty_summary=text)
+
+    def with_proportionate_action_justification(self, text: Optional[str]) -> "Recommendation":
+        return replace(self, proportionate_action_justification=text)
 
     def add_ranked_options(self, *ranked_options: RankedOption) -> "Recommendation":
         new_ros = _as_tuple_ro(self.ranked_options) + tuple(ranked_options)
@@ -176,4 +217,43 @@ class Recommendation:
             "observation_ids": tuple(self.observation_ids),
             "interpretation_ids": tuple(self.interpretation_ids),
             "model_state_ids": tuple(self.model_state_ids),
+        }
+
+    def as_dict(self) -> Mapping[str, Any]:
+        """
+        Debug/serialization-friendly view.
+        """
+        return {
+            "recommendation_id": self.recommendation_id,
+            "created_at": self.created_at.isoformat(),
+            "orientation_id": self.orientation_id,
+            "ranked_options": [
+                {
+                    "option_id": ro.option_id,
+                    "rank": ro.rank,
+                    "score": ro.score,
+                    "rationale": ro.rationale,
+                    "confidence": getattr(ro.confidence, "value", ro.confidence),
+                    "uncertainties": [
+                        {
+                            "description": getattr(u, "description", None),
+                            "level": getattr(u, "level", None),
+                        }
+                        for u in ro.uncertainties
+                    ],
+                    "tradeoffs": list(ro.tradeoffs),
+                    "constraint_checks": list(ro.constraint_checks),
+                }
+                for ro in self.ranked_options
+            ],
+            "evidence_ids": list(self.evidence_ids),
+            "observation_ids": list(self.observation_ids),
+            "interpretation_ids": list(self.interpretation_ids),
+            "model_state_ids": list(self.model_state_ids),
+            "override_used": self.override_used,
+            "override_scope_used": list(self.override_scope_used),
+            "uncertainty_summary": self.uncertainty_summary,
+            "proportionate_action_justification": self.proportionate_action_justification,
+            "summary": self.summary,
+            "meta": dict(self.meta),
         }

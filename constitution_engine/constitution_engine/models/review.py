@@ -1,45 +1,88 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional
 
-from .types import Confidence, Uncertainty, new_id, now_utc
+from .types import new_id, now_utc
 
 
-@dataclass(frozen=True)
-class AssumptionUpdate:
-    """
-    A learning artifact: how an assumption should change given outcomes.
-    References assumptions by stable ID to preserve audit through renames.
-    """
-    assumption_id: str
-    change: str  # e.g., "increase confidence", "split", "retire"
-    rationale: str
-
-    new_confidence: Optional[Confidence] = None
-    uncertainties: Sequence[Uncertainty] = field(default_factory=tuple)
+def _merge_meta(base: Mapping[str, Any], patch: Mapping[str, Any]) -> Mapping[str, Any]:
+    if not patch:
+        return dict(base)
+    out = dict(base)
+    out.update(patch)
+    return out
 
 
 @dataclass(frozen=True)
 class ReviewRecord:
     """
-    Review & Compression: feed outcomes back into assumptions, weights, next questions.
+    Episode-scoped review artifact.
+
+    Purpose (v0.5.2 thin-slice):
+      - record outcomes + calibration notes
+      - provide override audit visibility when constitutional overrides were used
     """
     review_id: str = field(default_factory=lambda: new_id("rev"))
     created_at: datetime = field(default_factory=now_utc)
 
-    recommendation_id: Optional[str] = None
-    outcome_id: Optional[str] = None
+    episode_id: Optional[str] = None
 
-    what_happened: str = ""
-    what_was_expected: str = ""
-    delta: str = ""
+    outcome_summary: str = ""
+    calibration_notes: str = ""
 
-    assumption_updates: Sequence[AssumptionUpdate] = field(default_factory=tuple)
-    next_questions: Sequence[str] = field(default_factory=tuple)
+    # Minimal override audit container.
+    # Expected shape (thin-slice):
+    # {
+    #   "overrides": [
+    #       {
+    #           "recommendation_id": "...",
+    #           "override_scope_used": ["PERM_A", ...],
+    #           "rationale": "..."
+    #       },
+    #       ...
+    #   ]
+    # }
+    override_audit: Mapping[str, Any] = field(default_factory=dict)
 
-    confidence: Confidence = field(default_factory=lambda: Confidence(0.5))
-    uncertainties: Sequence[Uncertainty] = field(default_factory=tuple)
+    meta: Mapping[str, Any] = field(default_factory=dict)
 
-    meta: Mapping[str, object] = field(default_factory=dict)
+    # -----------------------
+    # Immutability helpers
+    # -----------------------
+
+    def with_episode(self, episode_id: Optional[str]) -> "ReviewRecord":
+        return replace(self, episode_id=episode_id)
+
+    def with_outcome_summary(self, outcome_summary: str) -> "ReviewRecord":
+        return replace(self, outcome_summary=outcome_summary)
+
+    def with_calibration_notes(self, calibration_notes: str) -> "ReviewRecord":
+        return replace(self, calibration_notes=calibration_notes)
+
+    def with_override_audit(self, override_audit: Mapping[str, Any]) -> "ReviewRecord":
+        return replace(self, override_audit=dict(override_audit))
+
+    def with_meta(self, **meta: Any) -> "ReviewRecord":
+        return replace(self, meta=_merge_meta(self.meta, meta))
+        
+@dataclass(frozen=True)
+class AssumptionUpdate:
+    """
+    Minimal v0.5.x placeholder to keep the public import contract stable.
+
+    Represents a reviewed/explicit change to an assumption (or assumption-like artifact).
+    This is NOT Bayesian updating; it is auditable revision logged via Review.
+    """
+    update_id: str = field(default_factory=lambda: new_id("asmpu"))
+    created_at: datetime = field(default_factory=now_utc)
+
+    # What was changed (IDs only, audit-first)
+    assumption_id: Optional[str] = None
+    prior_artifact_id: Optional[str] = None
+    new_artifact_id: Optional[str] = None
+
+    # Human explanation / audit trace
+    rationale: str = ""
+    meta: Mapping[str, Any] = field(default_factory=dict)
