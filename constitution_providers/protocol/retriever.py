@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from constitution_providers.context import EpisodeContext
-from constitution_providers.proposals import DraftEnvelope
+from constitution_providers.protocol.proposals import DraftEnvelope
 
 
 @runtime_checkable

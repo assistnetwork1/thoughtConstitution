@@ -12,7 +12,7 @@ from constitution_engine.models.option import Option
 from constitution_engine.models.recommendation import Recommendation
 
 from .context import EpisodeContext
-from .proposals import ProposalSet
+from .protocol.proposals import ProposalSet
 from .protocol import ProposalProvider
 
 

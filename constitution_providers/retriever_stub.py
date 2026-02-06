@@ -5,7 +5,7 @@ from constitution_engine.models.evidence import Evidence, SourceRef, SpanRef
 from constitution_engine.models.types import Confidence
 
 from .context import EpisodeContext
-from .proposals import ProposalSet
+from .protocol.proposals import ProposalSet
 from .protocol import ProposalProvider
 
 

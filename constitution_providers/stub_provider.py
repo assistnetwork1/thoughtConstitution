@@ -12,7 +12,7 @@ from constitution_engine.models.types import (
 )
 
 from .context import EpisodeContext
-from .proposals import ProposalSet
+from .protocol.proposals import ProposalSet
 from .protocol import ProposalProvider
 
 

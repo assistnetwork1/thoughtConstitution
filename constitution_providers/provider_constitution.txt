@@ -1,0 +1,303 @@
+Alright. We’ll proceed in the exact order I recommended, starting with the **Provider Constitution** (the “what providers may/never do” charter). This is the foundation; everything else becomes straightforward once this is crisp.
+
+---
+
+# 1) Provider Constitution (v0.1, Canonical Draft)
+
+## 1.1 Scope
+
+This constitution governs **all non-kernel providers** (LLMs, symbolic reasoners, heuristics, human-in-the-loop tools) that emit upstream artifacts to the Thinking Constitution Engine (TCE).
+
+**Core claim:** Providers may *propose*. The kernel may *canonize*. Providers may not act.
+
+---
+
+## 1.2 Agency Boundary
+
+**The agency boundary is `choose(...)`.**
+
+* Providers exist strictly **upstream** of `choose(...)`.
+* Providers must never emit artifacts that imply or perform:
+
+  * selection,
+  * execution,
+  * override,
+  * review,
+  * calibration.
+
+If a provider output contains language equivalent to “do X” as a decision (not as an option), the kernel treats it as **invalid provider behavior** and downgrades/rejects output.
+
+---
+
+## 1.3 Allowed Provider Outputs (Hard Allowlist)
+
+Providers may emit **ProposalSets only**, containing any subset of:
+
+1. **Interpretation proposals**
+
+   * Interpretive InfoTypes only (CLAIM/EXPLANATION/HYPOTHESIS/FRAME as per your taxonomy)
+   * Must include confidence + uncertainty + evidence_refs
+
+2. **Option proposals**
+
+   * Must include impact, reversibility, action_class (proposal), uncertainty, evidence_refs
+   * OptionKind must be one of the kernel-allowed kinds (e.g., EXECUTE/HEDGE/INFO_GATHERING)
+
+3. **RankedOption proposals**
+
+   * Ranking over option_ids provided in the same ProposalSet (or explicitly referenced, if allowed)
+   * Must include rationale + uncertainty + evidence_refs
+
+### Explicitly *not* allowed inside ProposalSets
+
+* “Recommendation” objects (kernel-owned)
+* “ChoiceRecord”
+* “Outcome”
+* “ReviewRecord”
+* “CalibrationNote”
+* “Override” (any form)
+
+---
+
+## 1.4 Prohibited Behaviors (Hard Denylist)
+
+### P1 — Acting or Choosing
+
+Providers must not:
+
+* select an option as “the chosen one”
+* emit instructions framed as decisions (“you should do…” as final)
+
+### P2 — Silent Override Attempt
+
+Providers must not:
+
+* propose violating constitutional gates “because it’s necessary”
+* propose bypassing ActionClass gating, Orientation constraints, or invariant enforcement
+
+(Providers may *suggest* that an override might be needed, but cannot produce the override artifact and must mark it as **override-suggested** only.)
+
+### P3 — Epistemic Smuggling
+
+Providers must not:
+
+* convert evidence into “facts” without explicitly labeling as interpretation
+* invent provenance
+* claim certainty without uncertainty disclosure
+
+### P4 — Hidden State / Memory
+
+Providers must not:
+
+* depend on unstated memory
+* assume prior runs unless the kernel provides explicit context IDs
+
+---
+
+## 1.5 Mandatory Declaration Fields (Non-negotiable)
+
+Every proposed artifact that can influence action **must declare**:
+
+* `confidence` (support strength)
+* `uncertainty` (residual fragility)
+* `evidence_refs` (IDs only)
+* `limits` (one sentence: what the provider could be wrong about)
+
+If any of these are missing, the kernel:
+
+* rejects the artifact, or
+* forces downgrades (e.g., PROBE-only option) depending on your chosen failure policy (we’ll define next).
+
+---
+
+## 1.6 Determinism Requirement (Kernel-level)
+
+Provider integration must preserve the kernel’s property:
+
+> Same inputs → same kernel outputs.
+
+Because provider outputs are not deterministic, determinism must be achieved by **kernel policy**, not provider promise. Acceptable strategies include:
+
+* **temperature≈0 + strict schema** (default)
+* **multi-sample + deterministic aggregation** (ensemble policy)
+* **provider outputs treated as suggestions** with kernel canonicalization rules that yield stable results
+
+We’ll decide your default policy in Step 4.
+
+---
+
+## 1.7 Kernel Responsibilities (Explicit)
+
+The kernel must:
+
+* validate ProposalSet shape + required fields
+* downrank/reject artifacts that violate constitutional constraints
+* construct the canonical Recommendation (kernel-owned)
+* enforce ActionClass gating and Orientation constraints
+* treat provider disagreement as **risk-increasing** (action-weakening) by default
+
+---
+
+## 1.8 Provider Responsibility Tags (for audit)
+
+Every ProposalSet must include provider metadata:
+
+* provider_id (string)
+* model_id (string)
+* run_id (unique)
+* temperature / sampling policy
+* timestamp (kernel-stamped is fine)
+* declared limits
+
+This is what makes provider performance review possible without “learning drift.”
+
+---
+
+# 2) Next step (immediately): ProposalSet Schema (JSON-first)
+
+Now we turn that constitution into an **enforceable shape**. Here’s the *minimal* schema you should standardize on (conceptual JSON):
+
+```json
+{
+  "proposal_set": {
+    "provider_id": "openai|anthropic|local|human|symbolic",
+    "model_id": "string",
+    "run_id": "string",
+    "sampling": { "temperature": 0.0, "notes": "optional" },
+    "limits": "one sentence about likely failure modes",
+    "evidence_threads": [
+      { "thread_id": "string", "evidence_refs": ["ev_...","ev_..."], "notes": "optional" }
+    ],
+    "interpretations": [
+      {
+        "interpretation_id": "prov_tmp_...",
+        "info_type": "hypothesis|explanation|frame|claim",
+        "text": "string",
+        "confidence": 0.0,
+        "uncertainty": { "level": 0.0, "band": [0.0, 0.0], "notes": "optional" },
+        "evidence_refs": ["ev_..."],
+        "limits": "one sentence"
+      }
+    ],
+    "options": [
+      {
+        "option_id": "prov_tmp_...",
+        "kind": "execute|hedge|info_gathering",
+        "title": "string",
+        "description": "string",
+        "action_class": "probe|limited|commit",
+        "impact": 0.0,
+        "reversibility": 0.0,
+        "confidence": 0.0,
+        "uncertainty": { "level": 0.0, "band": [0.0, 0.0], "notes": "optional" },
+        "evidence_refs": ["ev_..."],
+        "limits": "one sentence"
+      }
+    ],
+    "ranked_options": [
+      {
+        "rank": 1,
+        "option_ref": "prov_tmp_...",
+        "rationale": "string",
+        "confidence": 0.0,
+        "uncertainty": { "level": 0.0, "band": [0.0, 0.0], "notes": "optional" },
+        "evidence_refs": ["ev_..."],
+        "limits": "one sentence"
+      }
+    ],
+    "override_suggestions": [
+      {
+        "invariant_id": "INV-...",
+        "reason": "string",
+        "scope": "episode_only",
+        "confidence": 0.0,
+        "uncertainty": { "level": 0.0 },
+        "evidence_refs": ["ev_..."],
+        "limits": "one sentence"
+      }
+    ]
+  }
+}
+```
+
+Notes:
+
+* Provider IDs are **temporary** (`prov_tmp_*`). The kernel will re-ID canon artifacts during intake/materialize.
+* `override_suggestions` is allowed only as a *flag*, not an override artifact.
+
+---
+
+# 3) Define Failure Policy (kernel-side) — choose your default
+
+We need a canonical rule for what happens when provider output is bad. Here is the recommended policy set (you can adopt all three):
+
+## F1 — Parse/Schema Failure
+
+If ProposalSet fails schema:
+
+* reject the entire ProposalSet
+* emit a kernel “ProviderError” audit note (non-fatal)
+
+## F2 — Missing Uncertainty/Confidence/Provenance
+
+If a proposed artifact is missing required fields:
+
+* reject that artifact
+* if this results in zero viable options: kernel inserts a **safe PROBE** option (your engine already supports this posture)
+
+## F3 — Constitutional Violations
+
+If proposed options violate ActionClass gates or Orientation constraints:
+
+* kernel downgrades action_class to PROBE where possible, else rejects the option
+* if provider suggests override: it stays as suggestion; kernel requires explicit ReviewRecord later
+
+This preserves: *providers can be wrong without becoming dangerous.*
+
+---
+
+# 4) Determinism Policy (pick now; implement later)
+
+I recommend this default:
+
+## D0 (Default): “Deterministic-first”
+
+* temperature = 0 (or as close as vendor allows)
+* 1 run per provider per episode phase
+* strict JSON schema
+* kernel canonicalizes + sorts deterministically
+
+Then optionally later:
+
+## D1 (Ensemble): “Stochastic allowed, aggregation deterministic”
+
+* N runs (e.g., 3–5)
+* keep only artifacts that are:
+
+  * duplicated across runs, or
+  * within a similarity threshold
+* disagreement increases uncertainty → weakens action
+
+But for v0.5.2 → v0.6 timeframe, D0 is the correct posture.
+
+---
+
+# What we do next (Step 2 of the plan)
+
+Next, I’ll convert the schema above into **kernel-enforceable invariants**, specifically:
+
+* ProposalSet admissibility checks
+* Per-artifact required-field checks
+* “No forbidden artifact class” checks
+* “Ranking must reference in-set option_ids” checks
+* “Override suggestion is not an override” checks
+
+And we’ll express them in your existing pattern:
+
+* `invariants.rules.*` predicates
+* `validate_episode` orchestration
+* tests that lock behavior
+
+If you want to keep this very tight: we start by writing **only 5–7 invariants** for the provider boundary, then expand.
+
+Say the word and I’ll lay out the exact invariant list (IDs, conditions, failure messages) to match your existing test discipline.

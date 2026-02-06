@@ -69,4 +69,4 @@ class ReasoningProvider(ProposalProvider, Protocol):
 
 # Local imports at bottom to avoid import cycles at import time.
 from .context import EpisodeContext
-from .proposals import ProposalSet
+from .protocol.proposals import ProposalSet

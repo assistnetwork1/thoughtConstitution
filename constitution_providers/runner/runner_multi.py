@@ -9,10 +9,10 @@ from constitution_engine.models.recommendation import Recommendation, RankedOpti
 from constitution_engine.models.types import new_id
 from constitution_engine.runtime.store import ArtifactStore
 
-from .context import EpisodeContext
-from .protocol import ProposalProvider
-from .proposals import ProposalSet
-from .runner.runner import _persist_many, _persist_one, _try_materialize, _try_validate
+from ..context import EpisodeContext
+from ..protocol import ProposalProvider
+from ..protocol.proposals import ProposalSet
+from .runner import _persist_many, _persist_one, _try_materialize, _try_validate
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,499 @@
+```md
+#project_context_02.05.2026-4
+#project_context/project_context_02.05.2026-4
+```
+
+This version **integrates the provider-layer completion** (including the new LLM/OpenAI adapter path), aligns terminology with the **now-passing test suite**, and cleanly freezes the kernel boundary. **No speculative features** are introduced.
+
+---
+
+# **Thinking Constitution Engine — Project Context (Canonical)**
+
+**v0.5.2 — Recommend → Choose → Act → Outcome → Review → Calibration Loop Closed**
+**Provider layer (ProposalSet boundary) + OpenAI adapter contract locked**
+
+---
+
+## Patch Focus
+
+Complete the **v0.5.x constitutional migration** by:
+
+* Replacing legacy numeric “strength caps” with canonical **ActionClass governance**
+* Closing the full **decision → consequence → learning** loop
+* Stabilizing **Intake → Materialize → Choose → Act → Outcome → Review → Calibration**
+* Integrating the **provider layer** as a hardened, test-locked upstream boundary
+* Preserving a **thin-slice, runnable, test-backed kernel**
+
+### Non-Goals (Hard Constraints)
+
+These remain **explicitly prohibited**:
+
+* No Bayesian updating
+* No utility maximization
+* No autonomous execution
+* No silent belief revision
+* No hidden learning or parameter drift
+
+All exceptions **must** be explicit, scoped, and review-audited.
+
+---
+
+## 0. Current Status Snapshot (as of 2026-02-05)
+
+### What Is Working Now (Confirmed by Execution + Tests)
+
+**End-to-end kernel lifecycle is closed and enforced:**
+
+```
+RawInput
+ → Evidence
+ → Observation
+ → Interpretation
+ → Option
+ → Recommendation
+ → Materialize (Orientation + DecisionEpisode)
+ → Choose
+ → Act
+ → Outcome
+ → Review
+ → Calibration
+ → Validate
+```
+
+**ArtifactStore is stable and deterministic**
+
+* IDs-only binders
+* Strict resolution
+* No implicit mutation
+
+**Invariants are executable predicates**
+
+* Defined in `invariants.rules`
+* Orchestrated by `validate_episode`
+* Locked by tests
+
+**Intake adapter is frozen at the contract level**
+
+* Normalizes drafts into canonical artifacts
+* Correctly links provenance chains
+* Emits RankedOptions with required structure
+* Produces Recommendations compatible with strict materialization
+* Requires `orientation_id` before action
+
+**Materialize step is stable**
+
+* Persists Orientation
+* Persists canonical Recommendation (kernel-owned)
+* Persists DecisionEpisode (IDs-only binder)
+* Passes `validate_episode` immediately
+
+**Choice + Action semantics are canonical**
+
+* `choose(...)` is the kernel entrypoint
+* Produces a `ChoiceRecord`
+* Binds choice to episode
+* Marks episode acted via `mark_acted`
+* Acting without Outcome fails validation
+
+**Outcome semantics are enforced**
+
+* Outcomes must reference existing Recommendation and/or Option
+* Acting requires at least one Outcome (**INV-OUT-001**)
+
+**Review + Calibration semantics are enforced**
+
+* Overrides require ReviewRecords
+* Reviews must audit scope + rationale
+* CalibrationNotes must reference:
+
+  * the correct Episode
+  * an existing Review
+  * existing Outcomes (if provided)
+
+**Provider layer is stable (ProposalSet boundary locked)**
+
+* Providers emit **ProposalSets only**
+* Provider outputs are treated as **untrusted**
+* `provider_rules` validates ProposalSet boundary invariants
+* Kernel constructs the canonical Recommendation
+* Multi-provider merging is deterministic
+* Evidence threading verified by tests
+
+**LLM integration foundation is locked (OpenAI adapter contract passing)**
+
+* Deterministic packing: `EpisodeContext → RenderedPrompt`
+* Transport protocol: `OpenAIRequest → OpenAIClient.invoke(...) → payload`
+* Adapter: JSON-only parse → provider_rules-compatible `ProposalSet`
+* Contract test: OpenAI adapter parses fixture JSON and passes provider_rules
+
+**Demo scripts run cleanly**
+
+* `python -m constitution_engine.scripts.run_intake_demo`
+* Demonstrates missing-input probing, ranked recommendations, and safe defaults
+
+**Test suite status**
+✅ **213 tests passing**, fast, deterministic, zero flakes
+
+---
+
+### Stable Repo Pattern (Confirmed)
+
+(a) invariants define rules
+(b) validation orchestrates enforcement
+(c) tests lock behavior
+
+This pattern has held across all v0.5.x changes.
+
+---
+
+## 1. Purpose (Why This Engine Exists)
+
+The **Thinking Constitution Engine (TCE)** is a **domain-agnostic governance kernel** that standardizes **how decisions are formed, constrained, justified, acted upon, reviewed, and learned from**.
+
+It exists to address systemic failures in modern decision systems:
+
+* Information overload and frame contamination
+* Implicit value smuggling into recommendations
+* Overconfident action under uncertainty
+* Lack of auditability (“why did this happen?”)
+* Lack of learning closure (“what happened after we acted?”)
+
+TCE is **not** an autonomous decision maker.
+
+It is a **constitutional layer governing decision support systems**.
+
+---
+
+## 2. Design Posture (Non-Negotiables)
+
+### Kernel-First
+
+* Models + invariants are the product
+* Everything else is downstream
+
+### Audit-First
+
+* Every recommendation is traceable
+* Every exception is explicit
+* Every override is review-audited
+
+### Proportionate Action
+
+* Uncertainty constrains action intensity
+* High impact + low reversibility demands weaker action or stronger evidence
+
+---
+
+## 3. Canonical Cognitive Loop
+
+```
+Observe → Model → Orient → Choose → Act → Review → Learn
+```
+
+---
+
+## 4. Canonical Artifacts by Phase
+
+### Observe
+
+* **Evidence** — provenance anchors
+* **Observation** — reality-anchored claims (InfoType-constrained)
+
+### Model
+
+* **Interpretation** — structured hypotheses (interpretive InfoTypes only)
+
+### Orient
+
+* **Orientation** — objectives, constraints, governance posture, override permissions
+
+### Choose / Act
+
+* **Option** — auditable candidate actions
+* **Recommendation** — ranked options + provenance (kernel-owned)
+* **ChoiceRecord** — explicit selection event (kernel-owned)
+* **DecisionEpisode** — IDs-only binder (kernel-owned)
+
+### Outcome
+
+* **Outcome** — what actually happened (kernel-owned)
+
+### Review
+
+* **ReviewRecord** — override audit + evaluative commentary (kernel-owned)
+
+### Calibration
+
+* **CalibrationNote** — proposed adjustments informed by outcomes (kernel-owned)
+
+---
+
+## 5. Uncertainty & Confidence (Canonical)
+
+* **Confidence** = how well supported a claim is
+* **Uncertainty** = remaining fragility even if supported
+
+Both must be explicit for action-relevant artifacts.
+
+### Encoding (v0.5.x)
+
+* `Uncertainty.level ∈ [0,1]` (non-Bayesian container)
+* Stable band mapping → LOW / MED / HIGH / UNKNOWN
+
+Any artifact influencing action **must** declare:
+
+* confidence
+* uncertainty
+* provenance pointers
+
+---
+
+## 6. Proportionate Action Gating (Implemented)
+
+Each Option declares:
+
+* impact ∈ [0,1]
+* reversibility ∈ [0,1]
+* uncertainties
+* action_class ∈ {probe, limited, commit}
+
+### Gate Rule
+
+Let `risk = f(impact, reversibility)`:
+
+* HIGH risk → uncertainty must be LOW, else only PROBE
+* MED risk → uncertainty ≤ MED, else only PROBE
+* LOW risk → any uncertainty allowed (must be declared)
+
+**Invariant:**
+A Recommendation must not include an Option violating this gate **unless explicitly overridden and reviewed**.
+
+---
+
+## 7. Overrides (Constitutional, Enforced)
+
+Overrides exist because reality is messy.
+
+They are never silent:
+
+* Explicit
+* Scoped
+* Episode-bounded
+* Review-audited
+
+Overrides without Review **fail validation**.
+
+---
+
+## 8. Intake + Materialize (Stable)
+
+### Intake Adapter (Frozen)
+
+* RawInput → Evidence
+* Draft → Observations / Interpretations / Options
+* Insert PROBE option when uncertainty is high
+* Produce Recommendation with RankedOption constraints satisfied
+* Defaults are safe, explicit, auditable
+
+### Materialize (Thin-Slice)
+
+* Persist Orientation
+* Persist canonical Recommendation
+* Persist DecisionEpisode binder
+* Validate immediately
+
+---
+
+## 9. Outcome + Learning Closure (v0.5.2)
+
+### Enforced Invariants
+
+* **INV-OUT-001**: Acting requires at least one Outcome
+* Outcome coherence
+* Review-override coherence
+* Calibration reference coherence
+
+This closes the **decision → consequence → review → calibration** loop
+without violating epistemic sovereignty.
+
+---
+
+## 10. Role of Agents (Retrievers, Reasoners, LLMs)
+
+### Core Principle
+
+**Agents never act. They only produce artifacts.**
+
+They plug into the engine **upstream of action**, never downstream.
+
+### Provider Boundary (Hardened)
+
+Providers must emit a **ProposalSet**, and nothing kernel-owned.
+
+Provider outputs are validated by `provider_rules`:
+
+* Required header fields (provider_id, model_id, run_id, limits, sampling.temperature)
+* Forbidden kernel-owned artifacts must be absent
+* Action-relevant proposals must declare: confidence, uncertainty.level, evidence_refs, limits
+* Evidence refs must resolve
+* RankedOptions must reference existing proposed Options
+* RankedOptions must be a strict total order
+* Override suggestions must be non-executable
+
+### Information Retrievers
+
+* Produce **Evidence only**
+* May fetch, retrieve, scrape, query
+* May not assert truth or recommend action
+
+> Evidence is *retrieved information*, not belief.
+
+### Reasoning Agents (LLMs, Symbolic Systems)
+
+* May propose:
+
+  * Interpretations
+  * Options
+  * RankedOptions
+  * OverrideSuggestions (non-executable only)
+
+* May not:
+
+  * Choose
+  * Act
+  * Create kernel Recommendation / Review / Outcome / Calibration artifacts
+
+### Recommendation Is Not an Agent Output
+
+A reasoning agent may propose rankings.
+The **kernel** constructs the canonical Recommendation after enforcing:
+
+* ActionClass gates
+* Orientation constraints
+* Override rules
+
+### Choose Is the Agency Boundary
+
+Choosing requires:
+
+* Recommendation
+* Option
+* ChoiceRecord
+* Explicit actor
+
+No agent crosses this boundary silently.
+
+---
+
+## 11. LLM Integration Foundation (Implemented, Contract-Locked)
+
+This is **not** “LLM autonomy.” It is a controlled upstream proposal mechanism.
+
+### Stable LLM Pipeline
+
+```
+EpisodeContext
+ → Packing (deterministic) → RenderedPrompt
+ → Client (transport) → raw payload
+ → Adapter (JSON-only parse) → ProposalSet
+ → provider_rules validation
+ → runner canonicalization → kernel Recommendation
+```
+
+### OpenAI Adapter (v1)
+
+* `constitution_providers.llm.openai.packing` produces `RenderedPrompt`
+* `OpenAIRequest(rendered_prompt, model_id, temperature)` is the transport contract
+* `OpenAIClient.invoke(req) -> Any` is the transport boundary
+* `OpenAIAdapter` parses JSON-only payload into provider_rules-compatible ProposalSet
+* Contract tests confirm: parsed ProposalSet passes provider_rules and references evidence correctly
+
+---
+
+## 12. What Is Intentionally Incomplete
+
+Explicitly deferred (not implemented, not partially hidden):
+
+* Automated learning updates
+* Belief revision mechanics
+* Override decay / expiry rules
+* Any autonomous execution
+
+---
+
+## 13. File Structure (Kernel-First, Provider Layer Expanded)
+
+```
+constitution_engine/
+  models/
+  intake/
+  invariants/
+    rules.py
+    provider_rules.py
+  runtime/
+  scripts/
+
+constitution_providers/
+  context.py
+  protocol/
+    protocol.py
+    proposals.py
+  runner.py
+  runner_multi.py
+  stub/
+  llm/
+    llm_provider.py
+    packing.py
+    openai/
+      adapter.py
+      client.py
+      packing.py
+      tests/
+
+constitution_engine/tests/
+```
+
+Notes:
+
+* `protocol/proposals.py` is the authoritative ProposalSet contract module.
+* LLM/OpenAI code lives under `constitution_providers/llm/openai/` with an adapter + client protocol split.
+
+---
+
+## 14. Change Log
+
+**v0.5**
+
+* Uncertainty semantics
+* ActionClass governance
+* Override canon
+
+**v0.5.1**
+
+* Numeric gating removed
+* Intake + Materialize stabilized
+
+**v0.5.2 (2026-02-05)**
+
+* Recommend → Choose → Act canonicalized
+* Outcome invariants enforced
+* Review + Calibration wired
+* Learning loop structurally closed
+* Provider layer stabilized (ProposalSet boundary + multi-provider threading)
+* LLM/OpenAI adapter contract passing
+* ✅ **213 tests passing**
+
+---
+
+## Status
+
+**Kernel complete. Constitution intact. Provider boundary locked.**
+
+Next logical moves (when ready, without breaking the constitution):
+
+* Freeze as **Kernel v1.0 (Constitution Complete)**
+* Draft v0.6 roadmap (learning signals, override decay)
+* Extract public README / whitepaper
+* Begin downstream adapters (apps, simulations, Assist Network)
+* Expand pack registry + routing specs for multiple models/prompt strategies (still ProposalSet-only)
+
