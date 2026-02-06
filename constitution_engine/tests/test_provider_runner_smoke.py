@@ -5,7 +5,7 @@ from constitution_engine.models.orientation import Orientation, Objective
 from constitution_engine.models.raw_input import RawInput
 
 from constitution_providers.context import EpisodeContext
-from constitution_providers.runner import run_provider
+from constitution_providers.runner.runner import run_provider
 from constitution_providers.stub_provider import StubProvider
 
 

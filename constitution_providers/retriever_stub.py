@@ -25,7 +25,6 @@ class StubRetrieverProvider(ProposalProvider):
         # Use the first raw input as the "retrieved" content for now (pure stub).
         raw_text = ""
         if ctx.raw_inputs:
-            # RawInput in your kernel: payload is the main content container
             raw_text = str(ctx.raw_inputs[0].payload)
 
         src = SourceRef(
@@ -33,11 +32,9 @@ class StubRetrieverProvider(ProposalProvider):
             title="Raw input (stub retriever)",
             author=None,
             published_at=None,
-            # retrieved_at auto-defaults to now_utc()
             extra={"mode": "stub_retriever"},
         )
 
-        # Optional span: we can set a span over the whole text if present
         spans = (SpanRef(start=0, end=len(raw_text)),) if raw_text else tuple()
 
         ev = Evidence(
