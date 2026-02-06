@@ -1,4 +1,3 @@
-
 """
 INTAKE ADAPTER — FROZEN (v1)
 
@@ -24,7 +23,6 @@ If this file needs to change, create:
 and leave this version intact.
 """
 
-
 from __future__ import annotations
 
 from dataclasses import replace
@@ -36,22 +34,27 @@ from constitution_engine.intake.drafter import (
     OptionDraft,
     RecommendationDraft,
 )
-from constitution_engine.intake.types import AdapterPolicy, DraftEpisode, GoalSpec, MissingInput, RawInputItem
-
+from constitution_engine.intake.types import (
+    AdapterPolicy,
+    DraftEpisode,
+    GoalSpec,
+    MissingInput,
+    RawInputItem,
+)
 from constitution_engine.models.evidence import Evidence, SourceRef, SpanRef
+from constitution_engine.models.interpretation import Interpretation
 from constitution_engine.models.observation import Observation
 from constitution_engine.models.option import Option, OptionKind
 from constitution_engine.models.recommendation import RankedOption, Recommendation
-from constitution_engine.models.interpretation import Interpretation
 from constitution_engine.models.types import (
-    InfoType,
-    new_id,
-    now_utc,
     Confidence,
+    Impact,
+    InfoType,
+    Reversibility,
     Uncertainty,
     UncertaintyKind,
-    Impact,
-    Reversibility,
+    new_id,
+    now_utc,
 )
 
 
@@ -75,6 +78,11 @@ def _fill_conf_unc(
     return (_clamp01(c), _clamp01(u))
 
 
+def _safe_uri(uri: str | None, *, raw_id: str) -> str:
+    u = (uri or "").strip()
+    return u if u else f"raw://{raw_id}"
+
+
 def _make_evidence(raw_inputs: Iterable[RawInputItem]) -> tuple[Evidence, ...]:
     """
     Evidence is provenance. In this repo:
@@ -88,7 +96,7 @@ def _make_evidence(raw_inputs: Iterable[RawInputItem]) -> tuple[Evidence, ...]:
         excerpt = _excerpt(ri.text, 200)
 
         src = SourceRef(
-            uri=ri.source_uri,
+            uri=_safe_uri(ri.source_uri, raw_id=ri.raw_id),
             extra={
                 "raw_input_id": ri.raw_id,
                 "raw_created_at_utc": ri.created_at_utc,
@@ -105,7 +113,7 @@ def _make_evidence(raw_inputs: Iterable[RawInputItem]) -> tuple[Evidence, ...]:
                 sources=(src,),
                 spans=spans,
                 summary=excerpt,
-                notes={"raw_text_len": len(ri.text)},
+                notes={"raw_text_len": len(ri.text or "")},
                 integrity=Confidence(1.0),
             )
         )
@@ -142,10 +150,15 @@ def _make_observations(
             kind=UncertaintyKind.OTHER,
         )
 
+        statement = (od.statement or "").strip()
+        if not statement:
+            # Adapter is allowed to be conservative: drop empty statements rather than force garbage.
+            continue
+
         out.append(
             Observation(
                 observation_id=new_id("obs"),
-                statement=od.statement.strip(),
+                statement=statement,
                 info_type=info_type,
                 confidence=Confidence(conf_f),
                 uncertainties=(unc_obj,),
@@ -183,7 +196,10 @@ def _make_interpretations(
             except Exception:
                 info_type = InfoType.HYPOTHESIS
 
-        text = itd.statement.strip()
+        text = (itd.statement or "").strip()
+        if not text:
+            continue
+
         title = _excerpt(text, 80)
         narrative = text
 
@@ -254,6 +270,11 @@ def _make_options(
     """
     out: list[Option] = []
     for op in bundle.options:
+        name = (op.name or "").strip()
+        desc = (op.description or "").strip()
+        if not name:
+            continue
+
         impact_f = _clamp01(op.impact if op.impact is not None else 0.3)
         rev_f = _clamp01(op.reversibility if op.reversibility is not None else 0.8)
 
@@ -274,8 +295,8 @@ def _make_options(
             Option(
                 option_id=new_id("opt"),
                 kind=kind,
-                title=op.name.strip(),
-                description=op.description.strip(),
+                title=name,
+                description=desc,
                 action_class=ac,
                 impact=Impact(impact_f),
                 reversibility=Reversibility(rev_f),

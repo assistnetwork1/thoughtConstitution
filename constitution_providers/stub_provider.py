@@ -1,4 +1,4 @@
-# constitution_providers/stub_provider.py
+# constitution_providers/stub/stub_provider.py
 from __future__ import annotations
 
 from constitution_engine.models.option import Option, OptionKind
