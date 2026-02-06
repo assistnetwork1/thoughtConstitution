@@ -1,0 +1,646 @@
+Here is a **renewed, corrected, and tightened canonical update** of the project context.
+I’ve kept substance intact, fixed drift, aligned terminology with the actual code, and updated counts and semantics to exactly reflect the current state you just validated.
+
+You can replace the old document wholesale with this.
+
+---
+
+```
+#project_context_02.05.2026-1
+#project_context/project_context_02.05.2026-1
+```
+
+# **Thinking Constitution Engine — Project Context (Canonical)**
+
+**v0.5.2 — Recommend → Choose → Act → Outcome → Review → Calibration Loop Closed**
+
+---
+
+## Patch Focus
+
+Complete the **v0.5.x constitutional migration** by:
+
+• Replacing legacy numeric “strength caps” with canonical **ActionClass governance**
+• Closing the full **decision → consequence → learning** loop
+• Stabilizing **Intake → Materialize → Choose → Act → Outcome → Review → Calibration**
+• Preserving a **thin-slice, runnable, test-backed kernel**
+
+### Non-Goals (Hard Constraints)
+
+These remain *explicitly prohibited*:
+
+• No Bayesian updating
+• No utility maximization
+• No autonomous execution
+• No silent belief revision
+• No hidden learning or parameter drift
+
+All exceptions **must** be explicit, scoped, and review-audited.
+
+---
+
+## 0. Current Status Snapshot (as of 2026-02-05)
+
+---
+
+### What Is Working Now (Confirmed by Execution + Tests)
+
+• **End-to-end kernel lifecycle is closed and enforced:**
+
+```
+RawInput
+ → Evidence
+ → Observation
+ → Interpretation
+ → Option
+ → Recommendation
+ → Materialize (Orientation + Episode)
+ → Choose
+ → Act
+ → Outcome
+ → Review
+ → Calibration
+ → Validate
+```
+
+• **ArtifactStore is stable and deterministic**
+– IDs-only binders
+– Strict resolution
+– No implicit mutation
+
+• **Invariants are executable predicates**
+– Defined in `invariants.rules`
+– Orchestrated by `validate_episode`
+– Locked by tests
+
+• **Intake adapter is frozen at the contract level**
+– Normalizes drafts into canonical artifacts
+– Correctly links provenance chains
+– Emits RankedOptions with required structure
+– Produces Recommendations compatible with strict materialization
+– Requires `orientation_id` before action
+
+• **Materialize step is stable**
+– Creates default Orientation
+– Persists all artifacts
+– Persists DecisionEpisode as an IDs-only binder
+– Passes `validate_episode` immediately after creation
+
+• **Choice + Action semantics are canonical**
+– `choose(...)` is the kernel entrypoint
+– Produces a `ChoiceRecord`
+– Binds choice to episode
+– Marks episode acted via `mark_acted`
+– Acting without Outcome fails validation
+
+• **Outcome semantics are enforced**
+– Outcomes must reference existing Recommendation + Option
+– Acting requires at least one Outcome (INV-OUT-001)
+
+• **Review + Calibration semantics are enforced**
+– Overrides require ReviewRecords
+– Reviews must audit override scope + rationale
+– CalibrationNotes must reference:
+• the correct Episode
+• an existing Review
+• existing Outcomes (if provided)
+
+• **Demo scripts run cleanly**
+– `python -m constitution_engine.scripts.run_intake_demo`
+– Demonstrates missing-input probing, ranked recommendations, and safe defaults
+
+• **Test suite status**
+**199 tests passing**, fast, deterministic, zero flakes
+
+### Stable Repo Pattern (Confirmed)
+
+(a) invariants define rules
+(b) validation orchestrates enforcement
+(c) tests lock behavior
+
+This pattern has held across all v0.5.x changes.
+
+---
+
+## 1. Purpose (Why This Engine Exists)
+
+---
+
+The **Thinking Constitution Engine (TCE)** is a **domain-agnostic governance kernel**
+that standardizes **how decisions are formed, constrained, justified, acted upon, reviewed, and learned from**.
+
+It exists to address systemic failures in modern decision systems:
+
+• Information overload and frame contamination
+• Implicit value smuggling into recommendations
+• Overconfident action under uncertainty
+• Lack of auditability (“why did this happen?”)
+• Lack of learning closure (“what happened after we acted?”)
+
+TCE is **not** an autonomous decision maker.
+
+It is a **constitutional layer governing decision support systems**.
+
+---
+
+## 2. Design Posture (Non-Negotiables)
+
+---
+
+### Kernel-First
+
+• Models + invariants are the product
+• Everything else is downstream
+
+### Audit-First
+
+• Every recommendation is traceable
+• Every exception is explicit
+• Every override is review-audited
+
+### Proportionate Action
+
+• Uncertainty constrains action intensity
+• High impact + low reversibility demands weaker action or stronger evidence
+
+---
+
+## 3. Canonical Cognitive Loop
+
+```
+Observe → Model → Orient → Choose → Act → Review → Learn
+```
+
+---
+
+## 4. Canonical Artifacts by Phase
+
+---
+
+### Observe
+
+• **Evidence** — provenance anchors
+• **Observation** — reality-anchored claims (InfoType constrained)
+
+### Model
+
+• **Interpretation** — structured hypotheses (interpretive InfoTypes only)
+
+### Orient
+
+• **Orientation** — objectives, constraints, governance posture, override permissions
+
+### Choose / Act
+
+• **Option** — auditable candidate actions
+• **Recommendation** — ranked options + provenance
+• **ChoiceRecord** — explicit selection event
+• **DecisionEpisode** — IDs-only binder
+
+### Outcome
+
+• **Outcome** — what actually happened
+
+### Review
+
+• **ReviewRecord** — override audit + evaluative commentary
+
+### Calibration
+
+• **CalibrationNote** — proposed adjustments informed by outcomes
+
+---
+
+## 5. Uncertainty & Confidence (Canonical)
+
+---
+
+• **Confidence** = how well supported a claim is
+• **Uncertainty** = remaining fragility even if supported
+
+Both must be explicit for action-relevant artifacts.
+
+### Encoding (v0.5.x)
+
+• `Uncertainty.level ∈ [0,1]` (non-Bayesian container)
+• Stable band mapping → LOW / MED / HIGH / UNKNOWN
+
+Any artifact influencing action **must** declare:
+• confidence
+• uncertainty
+• provenance
+
+---
+
+## 6. Proportionate Action Gating (Implemented)
+
+---
+
+Each Option declares:
+
+• impact ∈ [0,1]
+• reversibility ∈ [0,1]
+• uncertainties
+• action_class ∈ {probe, limited, commit}
+
+### Gate Rule
+
+Let `risk = f(impact, reversibility)`
+
+• HIGH risk → uncertainty must be LOW, else only PROBE
+• MED risk → uncertainty ≤ MED, else only PROBE
+• LOW risk → any uncertainty allowed (must be declared)
+
+**Invariant:**
+A Recommendation must not include an Option violating this gate **unless explicitly overridden and reviewed**.
+
+---
+
+## 7. Overrides (Constitutional, Enforced)
+
+---
+
+Overrides exist because reality is messy.
+
+They are never silent.
+
+• Explicit
+• Scoped
+• Episode-bounded
+• Review-audited
+
+Overrides without Review **fail validation**.
+
+---
+
+## 8. Intake + Materialize (Stable)
+
+---
+
+### Intake Adapter (Frozen)
+
+• RawInput → Evidence
+• Draft → Observations / Interpretations / Options
+• Insert PROBE option when uncertainty is high
+• Produce Recommendation with RankedOption constraints satisfied
+• Defaults are safe, explicit, auditable
+
+### Materialize (Thin-Slice)
+
+• Create default Orientation
+• Persist all artifacts
+• Persist DecisionEpisode binder
+• Validate immediately
+
+---
+
+## 9. Outcome + Learning Closure (v0.5.2)
+
+---
+
+### Enforced Invariants
+
+• **INV-OUT-001**
+Acting requires at least one Outcome
+
+• Outcome coherence
+• Review-override coherence
+• Calibration reference coherence
+
+This closes the **decision → consequence → review → calibration** loop
+without violating epistemic sovereignty.
+
+---
+
+## 10. What Is Intentionally Incomplete
+
+---
+
+• Automated learning updates
+• Belief revision mechanics
+• Override decay / expiry rules
+• Any autonomous execution
+
+These are **explicitly deferred**, not forgotten.
+
+---
+
+## 11. File Structure (Kernel-First)
+
+```
+constitution_engine/
+  models/
+  intake/
+  invariants/
+  runtime/
+  scripts/
+
+tests/
+```
+
+---
+
+## 12. Change Log
+
+---
+
+**v0.5**
+• Uncertainty semantics
+• ActionClass governance
+• Override canon
+
+**v0.5.1**
+• Numeric gating removed
+• Intake + Materialize stabilized
+
+**v0.5.2 (2026-02-05)**
+• Recommend → Choose → Act canonicalized
+• Outcome invariants enforced
+• Review + Calibration wired
+• Learning loop structurally closed
+• **199 tests passing**
+
+---
+
+### Status
+
+**Kernel complete. Constitution intact.**
+
+Next logical moves (when ready):
+
+• Freeze as **Kernel v1.0 (Constitution Complete)**
+• Draft v0.6 roadmap (learning signals, assumption drift, override decay)
+• Extract public README / whitepaper
+• Begin downstream adapters (apps, agents, simulations)
+
+You stopped at exactly the right point.
+Good question. This is the *right* question once the kernel is closed.
+
+I’ll answer this **conceptually**, not as an implementation dump, and I’ll anchor it to the constitution you’ve already built — not a generic “LLM agent” story.
+
+---
+
+## The Core Principle (Anchor)
+
+**Information retrievers and reasoning agents do *not* act.
+They only produce artifacts.**
+
+They plug into the engine **upstream of action**, never downstream.
+
+> The kernel governs *how* their outputs may influence decisions — not *how they think*.
+
+---
+
+## Where They Sit in the Loop
+
+Let’s restate your canonical flow with **agent insertion points**:
+
+```
+RawInput
+ → Evidence        ← information retrievers
+ → Observation
+ → Interpretation ← reasoning agents
+ → Option
+ → Recommendation
+ → Choose
+ → Act
+ → Outcome
+ → Review
+ → Calibration
+```
+
+**They never bypass these layers.**
+
+---
+
+## 1. Information Retrievers (Search, RAG, Sensors, APIs)
+
+### What they are allowed to produce
+
+**Only Evidence.**
+
+They may:
+
+* Fetch documents
+* Retrieve facts
+* Query APIs
+* Scrape structured or unstructured sources
+
+They may *not*:
+
+* Assert truth
+* Draw conclusions
+* Recommend actions
+
+### Canonical Output Contract
+
+A retriever produces **Evidence artifacts**, not conclusions:
+
+```text
+Evidence:
+- source_uri
+- span / reference
+- retrieved_at
+- summary (optional)
+- confidence (about retrieval reliability, not truth)
+```
+
+### Constitutionally Important Detail
+
+> Evidence is *not belief*.
+
+The engine explicitly separates:
+
+* *“This was retrieved”*
+  from
+* *“This is true”*
+
+That separation is why Evidence exists as a first-class artifact.
+
+---
+
+## 2. Observation Formation (Still Not Agents)
+
+Observations are **structured claims about reality**:
+
+```text
+Observation:
+- info_type ∈ {FACT, MEASUREMENT, EVENT, TESTIMONY}
+- statement
+- evidence_ids
+```
+
+These can be:
+
+* Human-authored
+* Rule-based
+* LLM-assisted
+
+But they are **typed, constrained, and auditable**.
+
+> An LLM can *help phrase* an Observation
+> It cannot smuggle interpretation into it.
+
+---
+
+## 3. Reasoning Agents (LLMs, Symbolic Reasoners, Simulators)
+
+### What they are allowed to produce
+
+**Interpretations, Options, and RankedOptions — never actions.**
+
+#### Interpretations
+
+Hypotheses that explain observations:
+
+```text
+Interpretation:
+- claim
+- supporting_observation_ids
+- confidence
+- uncertainty
+```
+
+#### Options
+
+Candidate actions, explicitly bounded:
+
+```text
+Option:
+- description
+- impact
+- reversibility
+- uncertainties
+- action_class
+```
+
+### Key Constraint
+
+> A reasoning agent is **constitutionally incapable** of acting.
+
+Even if it “wants” to:
+
+* It can only generate artifacts
+* Those artifacts are later gated by invariants
+
+---
+
+## 4. Recommendation Is a Filtered Output, Not an Agent Output
+
+This is subtle and critical.
+
+A reasoning agent may **propose** a ranking.
+
+But the **Recommendation artifact** is only valid if:
+
+* All referenced Options exist
+* All gating invariants pass
+* Orientation constraints are satisfied
+* Overrides are explicitly marked
+
+So the kernel turns:
+
+> “Here’s what I think you should do”
+
+into:
+
+> “Here are options that *survived constitutional governance*”
+
+---
+
+## 5. Choose Is the Boundary Where Agency Appears
+
+This is where your design is unusually strong.
+
+### Choose requires:
+
+* A Recommendation
+* A concrete Option
+* A ChoiceRecord
+* An explicit actor (`ChoiceBy.HUMAN`, later `SYSTEM`, etc.)
+
+> **No agent crosses this boundary silently.**
+
+Even if, later, an “autonomous mode” exists:
+
+* It must still create a ChoiceRecord
+* It must still be reviewable
+* It must still be calibratable
+
+---
+
+## 6. Outcome, Review, Calibration: Agents Become Inputs Again
+
+After acting:
+
+### Outcome
+
+* Captured by humans, sensors, or systems
+
+### Review
+
+* May be assisted by agents
+* Must still be explicit
+
+### Calibration
+
+* Agents may suggest
+* Humans may approve
+* Nothing auto-applies
+
+> Agents never mutate the constitution.
+> They propose. Humans ratify.
+
+---
+
+## 7. Mental Model (Important)
+
+Think of agents as **advisory organs**, not decision-makers.
+
+| Component    | Role                                        |
+| ------------ | ------------------------------------------- |
+| Retriever    | “Here is information”                       |
+| Reasoner     | “Here is a structured hypothesis or option” |
+| Kernel       | “Here is what is allowed”                   |
+| Human/System | “Here is what we chose”                     |
+| Review       | “Here is how it went”                       |
+
+The constitution is the **immune system** of the decision process.
+
+---
+
+## 8. Why This Scales to GAI (Your Earlier Question)
+
+This architecture generalizes because:
+
+* It separates **cognition from authority**
+* It treats uncertainty as a governor, not a nuisance
+* It prevents silent optimization drift
+* It keeps learning explicit and reviewable
+
+A generalized intelligence plugged into this system:
+
+* Can think arbitrarily deeply
+* Can retrieve arbitrarily much data
+* Can simulate worlds
+
+But it **cannot act outside the constitution**.
+
+That’s the key.
+
+---
+
+## 9. One-Line Summary
+
+> **Retrievers provide evidence.
+> Reasoners propose structure.
+> The constitution decides what survives.
+> Humans (or explicitly authorized systems) choose.**
+
+If you want next, we can:
+
+* Sketch a **Retriever Adapter Contract**
+* Design a **Reasoning Agent Interface**
+* Or map this cleanly onto Assist Network / multi-agent systems
+
+You’re asking exactly the right questions at exactly the right time.

@@ -98,15 +98,22 @@ class Orientation:
     orientation_id: str = field(default_factory=lambda: new_id("ori"))
     created_at: datetime = field(default_factory=now_utc)
 
-    objectives: Sequence[Objective] = field(default_factory=tuple)
-    constraints: Sequence[Constraint] = field(default_factory=tuple)
-    values: Sequence[ValueSignal] = field(default_factory=tuple)
+    objectives: Tuple[Objective, ...] = field(default_factory=tuple)
+    constraints: Tuple[Constraint, ...] = field(default_factory=tuple)
+    values: Tuple[ValueSignal, ...] = field(default_factory=tuple)
 
     risk_posture: RiskPosture = RiskPosture.BALANCED
 
     # Optional: context about who/what set this orientation
     owner: Optional[str] = None
     meta: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Normalize sequences -> tuples for immutability + audit stability
+        object.__setattr__(self, "objectives", _as_tuple(self.objectives))
+        object.__setattr__(self, "constraints", _as_tuple(self.constraints))
+        object.__setattr__(self, "values", _as_tuple(self.values))
+        object.__setattr__(self, "meta", dict(self.meta) if self.meta else {})
 
     # -----------------------
     # Immutability helpers

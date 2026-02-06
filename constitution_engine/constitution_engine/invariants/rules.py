@@ -4,14 +4,14 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Iterable, Mapping, Sequence
 
+from constitution_engine.models.choice import ChoiceRecord
 from constitution_engine.models.evidence import Evidence
 from constitution_engine.models.observation import Observation
 from constitution_engine.models.option import Option, OptionKind
-from constitution_engine.models.recommendation import Recommendation
-from constitution_engine.models.types import InfoType
-from constitution_engine.models.review import ReviewRecord
 from constitution_engine.models.outcome import Outcome
-from constitution_engine.models.choice import ChoiceRecord
+from constitution_engine.models.recommendation import Recommendation
+from constitution_engine.models.review import ReviewRecord
+from constitution_engine.models.types import InfoType
 
 
 @dataclass(frozen=True)
@@ -395,6 +395,7 @@ def bucket_impact_level(opt: Option, *, high: float = 0.7, med: float = 0.4) -> 
     """
     v = getattr(getattr(opt, "impact", None), "value", None)
     if v is None:
+        # Conservative: unknown impact treated as HIGH (forces PROBE when uncertainty isn't LOW)
         return ImpactLevel.HIGH
     if v >= high:
         return ImpactLevel.HIGH
@@ -410,6 +411,7 @@ def bucket_reversibility_level(opt: Option, *, low: float = 0.3, med: float = 0.
     """
     v = getattr(getattr(opt, "reversibility", None), "value", None)
     if v is None:
+        # Conservative: unknown reversibility treated as LOW (hard to reverse)
         return ReversibilityLevel.LOW
     if v <= low:
         return ReversibilityLevel.LOW
@@ -711,10 +713,7 @@ def require_choices_reference_existing_recommendations_and_options(
             violations.append(
                 InvariantViolation(
                     rule="INV-CHO-002",
-                    message=(
-                        f"ChoiceRecord {ch.choice_id} references missing Recommendation "
-                        f"{ch.recommendation_id}."
-                    ),
+                    message=f"ChoiceRecord {ch.choice_id} references missing Recommendation {ch.recommendation_id}.",
                 )
             )
 
@@ -722,10 +721,7 @@ def require_choices_reference_existing_recommendations_and_options(
             violations.append(
                 InvariantViolation(
                     rule="INV-CHO-002",
-                    message=(
-                        f"ChoiceRecord {ch.choice_id} references missing Option "
-                        f"{ch.option_id}."
-                    ),
+                    message=f"ChoiceRecord {ch.choice_id} references missing Option {ch.option_id}.",
                 )
             )
 
@@ -833,10 +829,7 @@ def require_outcomes_reference_existing_recommendations_or_options(
             violations.append(
                 InvariantViolation(
                     rule="INV-OUT-001",
-                    message=(
-                        f"Outcome {out.outcome_id} references missing Recommendation "
-                        f"{out.recommendation_id}."
-                    ),
+                    message=f"Outcome {out.outcome_id} references missing Recommendation {out.recommendation_id}.",
                 )
             )
 
@@ -844,10 +837,7 @@ def require_outcomes_reference_existing_recommendations_or_options(
             violations.append(
                 InvariantViolation(
                     rule="INV-OUT-001",
-                    message=(
-                        f"Outcome {out.outcome_id} references missing Option "
-                        f"{out.chosen_option_id}."
-                    ),
+                    message=f"Outcome {out.outcome_id} references missing Option {out.chosen_option_id}.",
                 )
             )
 
@@ -867,9 +857,6 @@ def require_outcome_exists_if_episode_acted(
         - has a recommendation, and
         - acted == True,
       then it must include at least one outcome_id.
-
-    We keep 'acted' explicit so validate_episode can decide the policy definition of "acted"
-    (e.g., via episode.meta['acted']=True, or a stored action event, etc.).
     """
     if not has_recommendation:
         return tuple()

@@ -6,6 +6,12 @@ from constitution_engine.models.evidence import Evidence, SourceRef
 from constitution_engine.models.option import Option, OptionKind
 from constitution_engine.models.recommendation import Recommendation, RankedOption
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 @pytest.fixture
 def make_minimal_bundle():
