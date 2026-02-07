@@ -170,6 +170,31 @@ def require_provider_artifacts_declare_fields(ps: Any) -> Sequence[InvariantViol
 
 
 # ---------------------------
+# INV-PS-004 — action_class enum (probe|limited|commit)
+# ---------------------------
+
+_ALLOWED_ACTION_CLASS = {"probe", "limited", "commit"}
+
+
+def require_action_class_enum(ps: Any) -> Sequence[InvariantViolation]:
+    violations: list[InvariantViolation] = []
+    for opt in _as_list(_get(ps, "options", [])):
+        ac = _get(opt, "action_class", None)
+        oid = str(_get(opt, "option_id", "<?>"))
+        if not _is_nonempty_str(ac) or str(ac) not in _ALLOWED_ACTION_CLASS:
+            violations.append(
+                InvariantViolation(
+                    rule="INV-PA-003",
+                    message=(
+                        f"Option {oid} has invalid action_class={ac!r} "
+                        f"(allowed={sorted(_ALLOWED_ACTION_CLASS)})"
+                    ),
+                )
+            )
+    return tuple(violations)
+
+
+# ---------------------------
 # INV-PS-002 — Evidence references must resolve
 # ---------------------------
 
@@ -183,7 +208,8 @@ def require_proposalset_evidence_refs_resolve(
 
     def check_refs(kind: str, obj: Any, label: str) -> None:
         refs = _get(obj, "evidence_refs", []) or []
-        missing = [r for r in refs if r not in evidence_by_id]
+        refs_list = refs if isinstance(refs, (list, tuple)) else [refs]
+        missing = [r for r in refs_list if r not in evidence_by_id]
         if missing:
             violations.append(
                 InvariantViolation(
@@ -296,7 +322,7 @@ def require_override_suggestions_non_executable(ps: Any) -> Sequence[InvariantVi
             violations.append(
                 InvariantViolation(
                     rule="INV-PS-003",
-                    message="Override suggestion contains executable override fields",
+                    message=f"Override suggestion contains executable override fields: {', '.join(bad)}",
                 )
             )
     return tuple(violations)
@@ -322,6 +348,7 @@ def validate_proposalset(
     violations.extend(require_proposalset_header_fields(ps))
     violations.extend(require_no_forbidden_artifact_fields(ps))
     violations.extend(require_provider_artifacts_declare_fields(ps))
+    violations.extend(require_action_class_enum(ps))
     violations.extend(require_proposalset_evidence_refs_resolve(ps, evidence_by_id=evidence_by_id))
     violations.extend(require_ranked_options_reference_existing_options(ps))
     violations.extend(require_ranked_options_strict_total_order(ps))

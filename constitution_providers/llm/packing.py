@@ -139,6 +139,21 @@ def _stringify_evidence(evidence: Sequence[Any]) -> str:
     return _stable_lines(ev_summaries)
 
 
+def _stringify_evidence_ids(evidence: Sequence[Any]) -> str:
+    """
+    Deterministic list of allowed evidence IDs.
+    Providers MUST ONLY reference these IDs in evidence_refs.
+    """
+    ids: list[str] = []
+    for ev in evidence:
+        if ev is None:
+            continue
+        ev_id = getattr(ev, "evidence_id", None)
+        if isinstance(ev_id, str) and ev_id.strip():
+            ids.append(ev_id.strip())
+    return _stable_lines(ids)
+
+
 def render_prompt(
     *,
     pack: PromptPack,
@@ -170,6 +185,7 @@ def render_prompt(
 
     raw_txt = _stringify_raw_inputs(raw_inputs)
     ev_txt = _stringify_evidence(evidence)
+    ev_ids_txt = _stringify_evidence_ids(evidence)
 
     # Basic templating (v1). Keep templates pure; no arbitrary code.
     system = pack.system_template.format(
@@ -185,6 +201,7 @@ def render_prompt(
         values=val_txt,
         raw_inputs=raw_txt,
         evidence=ev_txt,
+        evidence_ids=ev_ids_txt,
     )
 
     meta: dict[str, object] = {
@@ -193,6 +210,9 @@ def render_prompt(
         "objective_count": len(objectives),
         "raw_input_count": len(raw_inputs),
         "evidence_count": len(evidence),
+        "evidence_ids": tuple(
+            [line.strip() for line in (ev_ids_txt.splitlines() if ev_ids_txt else []) if line.strip()]
+        ),
     }
     if extra:
         meta.update(dict(extra))
@@ -224,8 +244,11 @@ def default_reasoner_pack_v1() -> PromptPack:
         "Hard constraints:\n"
         "- ranked_options must be a strict total order with ranks 1..N\n"
         '- option_ref must reference an option_id from "options"\n'
-        "- Every Interpretation/Option/RankedOption must include:\n"
+        "- Every Interpretation/Option/RankedOption/OverrideSuggestion must include:\n"
         "  confidence (number), uncertainty.level (number), evidence_refs (list), limits (string)\n"
+        "\n"
+        "Evidence constraint:\n"
+        "- evidence_refs MUST ONLY contain IDs listed in VALID EVIDENCE IDS.\n"
     )
 
     user = (
@@ -235,6 +258,8 @@ def default_reasoner_pack_v1() -> PromptPack:
         "Values:\n{values}\n\n"
         "Raw Inputs:\n{raw_inputs}\n\n"
         "Evidence Summaries:\n{evidence}\n\n"
+        "VALID EVIDENCE IDS (you MUST ONLY reference these in evidence_refs):\n"
+        "{evidence_ids}\n\n"
         "TASK\n"
         "Propose:\n"
         "1) interpretations (hypothesis/explanation/frame) linked to evidence_refs\n"
@@ -249,7 +274,7 @@ def default_reasoner_pack_v1() -> PromptPack:
         '      "text": "...",\n'
         '      "confidence": 0.0,\n'
         '      "uncertainty": {{"level": 0.0}},\n'
-        '      "evidence_refs": ["ev_..."],\n'
+        '      "evidence_refs": ["<choose from VALID EVIDENCE IDS>"],\n'
         '      "limits": "..." \n'
         "    }}\n"
         "  ],\n"
@@ -264,7 +289,7 @@ def default_reasoner_pack_v1() -> PromptPack:
         '      "reversibility": 0.0,\n'
         '      "confidence": 0.0,\n'
         '      "uncertainty": {{"level": 0.0}},\n'
-        '      "evidence_refs": ["ev_..."],\n'
+        '      "evidence_refs": ["<choose from VALID EVIDENCE IDS>"],\n'
         '      "limits": "..."\n'
         "    }}\n"
         "  ],\n"
@@ -276,7 +301,7 @@ def default_reasoner_pack_v1() -> PromptPack:
         '      "title": "...",\n'
         '      "confidence": 0.5,\n'
         '      "uncertainty": {{"level": 0.5}},\n'
-        '      "evidence_refs": ["ev_..."],\n'
+        '      "evidence_refs": ["<choose from VALID EVIDENCE IDS>"],\n'
         '      "limits": "..." \n'
         "    }}\n"
         "  ],\n"

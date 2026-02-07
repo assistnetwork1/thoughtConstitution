@@ -1,4 +1,6 @@
 # constitution_providers/llm/__init__.py
+from __future__ import annotations
+
 from .dispatch import dispatch
 from .registry import (
     AdapterRegistry,

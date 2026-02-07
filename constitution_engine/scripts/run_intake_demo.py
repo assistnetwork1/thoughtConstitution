@@ -1,7 +1,10 @@
+# constitution_engine/scripts/run_intake_demo.py
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from constitution_engine.intake.adapter import draft_episode
-from constitution_engine.intake.types import GoalSpec, RawInputItem, AdapterPolicy
+from constitution_engine.intake.types import AdapterPolicy, GoalSpec, RawInputItem
 from constitution_engine.intake.materialize import materialize_draft_episode
 from constitution_engine.invariants.validate import validate_episode
 from constitution_engine.runtime.store import ArtifactStore
@@ -10,8 +13,25 @@ from constitution_engine.intake.act import act_on_option
 from constitution_engine.intake.outcome_log import log_outcome
 
 # Prefer the same StubDrafter import your tests use.
-# If you have a dedicated stub in intake, keep this:
 from constitution_engine.intake.stub_drafter import StubDrafter  # type: ignore
+
+
+def _parse_utc(ts: str) -> datetime:
+    """
+    Accepts:
+      - "2026-02-04T00:00:00Z"
+      - "2026-02-04T00:00:00+00:00"
+      - naive ISO (treated as UTC)
+    """
+    s = (ts or "").strip()
+    if not s:
+        return datetime.now(timezone.utc)
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def _print_report(report) -> None:
@@ -43,19 +63,19 @@ def main() -> None:
             raw_id="r1",
             text="I think the engine is solid now, but I'm not sure people will understand it.",
             source_uri="internal:user",
-            created_at_utc="2026-02-04T00:00:00Z",
+            created_at_utc=_parse_utc("2026-02-04T00:00:00Z"),
         ),
         RawInputItem(
             raw_id="r2",
             text="If I build a demo, it might help me explain it fast. But it could also distract me from finishing the learning loop.",
             source_uri="internal:user",
-            created_at_utc="2026-02-04T00:05:00Z",
+            created_at_utc=_parse_utc("2026-02-04T00:05:00Z"),
         ),
         RawInputItem(
             raw_id="r3",
             text="I don’t know who the audience is yet (friends? recruiters? builders?).",
             source_uri="internal:user",
-            created_at_utc="2026-02-04T00:08:00Z",
+            created_at_utc=_parse_utc("2026-02-04T00:08:00Z"),
         ),
     ]
 
@@ -77,8 +97,7 @@ def main() -> None:
 
     print("\n--- Evidence ---")
     for ev in draft.evidence:
-        # Defensive: sources should exist (invariants enforce this)
-        uri = ev.sources[0].uri if ev.sources else "(no sources)"
+        uri = ev.sources[0].uri if getattr(ev, "sources", None) else "(no sources)"
         print(f"- {ev.evidence_id}: {uri} | summary={repr(getattr(ev, 'summary', None))}")
 
     print("\n--- Observations ---")
@@ -145,7 +164,6 @@ def main() -> None:
         chosen_option_id = draft.recommendation.top_option_id()
         chosen_rec_id = draft.recommendation.recommendation_id
     else:
-        # fallback: pick first option
         chosen_option_id = draft.options[0].option_id if draft.options else None
 
     if not chosen_option_id:
@@ -156,7 +174,7 @@ def main() -> None:
     print("\n=== ACTED ===")
     print("chosen_option_id:", chosen_option_id)
 
-    # Validate now (should fail INV-OUT-001 if you added that invariant)
+    # Validate now (should fail INV-OUT-001 if invariant is active)
     report2 = validate_episode(store=store, episode_id=episode_id)
     _print_report(report2)
 
@@ -178,15 +196,9 @@ def main() -> None:
     _print_report(report3)
 
     # -------------------------
-    # REVIEW (stub) → VALIDATE
+    # REVIEW (only if override used) → VALIDATE
     # -------------------------
-    # NOTE: Only required if override_used=True.
-    # If you want to always demonstrate Review, create one here and attach to episode.
-    # I'm leaving it minimal + safe: only do it when overrides were used.
-
     if draft.recommendation and draft.recommendation.override_used:
-        # If your repo has a helper like `log_review(...)`, use it instead.
-        # Otherwise, create a ReviewRecord and attach to episode similarly to log_outcome.
         from constitution_engine.models.review import ReviewRecord
         from constitution_engine.models.episode import DecisionEpisode
         from constitution_engine.models.types import new_id, now_utc
